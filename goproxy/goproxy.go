@@ -1,4 +1,4 @@
-package main
+package goproxy
 
 import (
 	"context"
@@ -30,13 +30,13 @@ type client struct {
 	httpClient *http.Client
 }
 
-type GoProxyClient interface {
+type Client interface {
 	GetModuleLatestInfo(ctx context.Context, modulePath string) (ModuleInfo, error)
 	GetModuleInfo(ctx context.Context, modulePath, version string) (ModuleInfo, error)
 	GetModuleModFile(ctx context.Context, modulePath, version string) (*modfile.File, error)
 }
 
-func NewGoProxyClient() GoProxyClient {
+func NewGoProxyClient() Client {
 	return &client{
 		apiURL:     apiURL,
 		httpClient: &http.Client{},
