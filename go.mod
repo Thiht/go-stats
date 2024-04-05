@@ -3,9 +3,11 @@ module github.com/Thiht/go-stats
 go 1.22.1
 
 require (
+	github.com/Thiht/go-command v0.0.0-20231029214515-d41425a1c673
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.18.0
+	github.com/schollz/progressbar/v3 v3.14.2
 	golang.org/x/mod v0.16.0
 	golang.org/x/sync v0.3.0
 )
@@ -14,7 +16,6 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
-	github.com/Thiht/go-command v0.0.0-20231029214515-d41425a1c673 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -26,7 +27,6 @@ require (
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/schollz/progressbar/v3 v3.14.2 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
