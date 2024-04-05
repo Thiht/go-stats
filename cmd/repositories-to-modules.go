@@ -26,9 +26,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var (
-	parallel = runtime.NumCPU()
-)
+var parallel = runtime.NumCPU()
 
 func RepositoriesToModulesHandler() command.Handler {
 	return func(ctx context.Context, flagSet *flag.FlagSet, _ []string) int {
@@ -99,20 +97,20 @@ func RepositoriesToModulesHandler() command.Handler {
 							logger.Debug("repository already exists, removing it now", slog.String("path", clonePath))
 							if err := os.RemoveAll(clonePath); err != nil {
 								logger.Error("failed to remove repository", slog.String("path", clonePath), slog.Any("error", err))
-								return err
+								return fmt.Errorf("failed to remove repository: %w", err)
 							}
 
 						default:
 							logger.Error("failed to clone repository", slog.String("path", clonePath), slog.Any("error", err))
 						}
 
-						return err
+						return fmt.Errorf("failed to clone repository: %w", err)
 					}
 
 					return nil
 				}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx)); err != nil {
 					logger.Error("failed to clone repository", slog.String("path", clonePath), slog.Any("error", err))
-					return err
+					return fmt.Errorf("failed to clone repository after multiple attempts: %w", err)
 				}
 				defer func() {
 					logger.Debug("removing repository", slog.String("path", clonePath))
@@ -135,14 +133,14 @@ func RepositoriesToModulesHandler() command.Handler {
 					file, err := os.Open(path)
 					if err != nil {
 						logger.Error("failed to open go.mod file", slog.String("path", path), slog.Any("error", err))
-						return err
+						return fmt.Errorf("failed to open go.mod file: %w", err)
 					}
 					defer file.Close()
 
 					data, err := io.ReadAll(file)
 					if err != nil {
 						logger.Error("failed to read go.mod file", slog.String("path", path), slog.Any("error", err))
-						return err
+						return fmt.Errorf("failed to read go.mod file: %w", err)
 					}
 
 					parsedFile, err := modfile.Parse(path, data, nil)
@@ -164,7 +162,7 @@ func RepositoriesToModulesHandler() command.Handler {
 					return nil
 				}); err != nil {
 					logger.Error("failed to walk repository", slog.String("path", clonePath), slog.Any("error", err))
-					return err
+					return fmt.Errorf("failed to walk repository: %w", err)
 				}
 
 				return nil
@@ -200,7 +198,7 @@ func RepositoriesToModulesHandler() command.Handler {
 var reGitHubRepository = regexp.MustCompile(`^https://github.com/[^/]+/[^/]+$`)
 
 func normalizeRepository(repository string) (string, error) {
-	if strings.HasPrefix("http://github.com/", repository) {
+	if strings.HasPrefix(repository, "http://github.com/") {
 		repository = strings.TrimPrefix(repository, "http://")
 		repository = "https://" + repository
 	}

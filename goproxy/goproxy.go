@@ -3,6 +3,7 @@ package goproxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,13 +17,13 @@ const (
 )
 
 type ModuleInfo struct {
-	Version string
-	Time    time.Time
+	Version string    `json:"Version"`
+	Time    time.Time `json:"Time"`
 	Origin  struct {
-		VCS  string
-		URL  string
-		Hash string
-	}
+		VCS  string `json:"VCS"`
+		URL  string `json:"URL"`
+		Hash string `json:"Hash"`
+	} `json:"Origin"`
 }
 
 type client struct {
@@ -43,17 +44,17 @@ func NewGoProxyClient() Client {
 	}
 }
 
-var ErrModuleNotFound = fmt.Errorf("module not found")
+var ErrModuleNotFound = errors.New("module not found")
 
 func (c *client) GetModuleLatestInfo(ctx context.Context, modulePath string) (ModuleInfo, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiURL+"/"+modulePath+"/@latest", nil)
 	if err != nil {
-		return ModuleInfo{}, err
+		return ModuleInfo{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return ModuleInfo{}, err
+		return ModuleInfo{}, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -67,7 +68,7 @@ func (c *client) GetModuleLatestInfo(ctx context.Context, modulePath string) (Mo
 
 	var info ModuleInfo
 	if err := json.NewDecoder(response.Body).Decode(&info); err != nil {
-		return ModuleInfo{}, err
+		return ModuleInfo{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return info, nil
@@ -76,12 +77,12 @@ func (c *client) GetModuleLatestInfo(ctx context.Context, modulePath string) (Mo
 func (c *client) GetModuleInfo(ctx context.Context, modulePath, version string) (ModuleInfo, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiURL+"/"+modulePath+"/@v/"+version+".info", nil)
 	if err != nil {
-		return ModuleInfo{}, err
+		return ModuleInfo{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return ModuleInfo{}, err
+		return ModuleInfo{}, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -91,7 +92,7 @@ func (c *client) GetModuleInfo(ctx context.Context, modulePath, version string) 
 
 	var info ModuleInfo
 	if err := json.NewDecoder(response.Body).Decode(&info); err != nil {
-		return ModuleInfo{}, err
+		return ModuleInfo{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return info, nil
@@ -100,12 +101,12 @@ func (c *client) GetModuleInfo(ctx context.Context, modulePath, version string) 
 func (c *client) GetModuleModFile(ctx context.Context, modulePath, version string) (*modfile.File, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiURL+"/"+modulePath+"/@v/"+version+".mod", nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -119,12 +120,12 @@ func (c *client) GetModuleModFile(ctx context.Context, modulePath, version strin
 
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	file, err := modfile.Parse("go.mod", data, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response as modfile: %w", err)
 	}
 
 	return file, nil

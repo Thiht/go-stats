@@ -1,0 +1,16 @@
+linters:
+  presets:
+    - bugs
+    - error
+    - format
+    - import
+    - metalinter
+    - module
+    - performance
+    - test
+    - unused
+
+  disable:
+    - depguard
+    - exhaustruct
+    - goerr113

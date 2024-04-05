@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"sync"
@@ -87,7 +88,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 					}
 
 					logger.Error("failed to get latest module info", slog.Any("error", err))
-					return err
+					return fmt.Errorf("failed to get latest module info: %w", err)
 				}
 
 				modulePath.Version = moduleInfo.Version
@@ -102,7 +103,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 				}
 
 				logger.Error("failed to get module go.mod file", slog.Any("error", err))
-				return err
+				return fmt.Errorf("failed to get module go.mod file: %w", err)
 			}
 
 			if modFile.Module == nil {
@@ -116,7 +117,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 				"version": modFile.Module.Mod.Version,
 			}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("")); err != nil {
 				logger.Error("failed to create module node", slog.String("name", modFile.Module.Mod.Path), slog.Any("error", err))
-				return err
+				return fmt.Errorf("failed to create module node: %w", err)
 			}
 
 			logger.Debug("processing direct dependencies")
@@ -134,7 +135,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 					"version": dependency.Mod.Version,
 				}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("")); err != nil {
 					logger.Error("failed to create dependency module node", slog.String("name", dependency.Mod.Path), slog.Any("error", err))
-					return err
+					return fmt.Errorf("failed to create dependency module node: %w", err)
 				}
 
 				logger.Debug("creating DEPENDS_ON relationship", slog.String("dependent", modFile.Module.Mod.Path), slog.String("dependentVersion", modFile.Module.Mod.Version), slog.String("dependency", dependency.Mod.Path), slog.String("dependencyVersion", dependency.Mod.Version))
@@ -145,7 +146,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 					"dependencyVersion": dependency.Mod.Version,
 				}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("")); err != nil {
 					logger.Error("failed to create DEPENDS_ON relationship", slog.String("dependent", modFile.Module.Mod.Path), slog.String("dependentVersion", modFile.Module.Mod.Version), slog.String("dependency", dependency.Mod.Path), slog.String("dependencyVersion", dependency.Mod.Version), slog.Any("error", err))
-					return err
+					return fmt.Errorf("failed to create DEPENDS_ON relationship: %w", err)
 				}
 
 				logger.Debug("creating IS_DEPENDED_ON_BY relationship", slog.String("dependent", modFile.Module.Mod.Path), slog.String("dependentVersion", modFile.Module.Mod.Version), slog.String("dependency", dependency.Mod.Path), slog.String("dependencyVersion", dependency.Mod.Version))
@@ -156,7 +157,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 					"dependencyVersion": dependency.Mod.Version,
 				}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("")); err != nil {
 					logger.Error("failed to create IS_DEPENDED_ON_BY relationship", slog.String("dependent", modFile.Module.Mod.Path), slog.String("dependentVersion", modFile.Module.Mod.Version), slog.String("dependency", dependency.Mod.Path), slog.String("dependencyVersion", dependency.Mod.Version), slog.Any("error", err))
-					return err
+					return fmt.Errorf("failed to create IS_DEPENDED_ON_BY relationship: %w", err)
 				}
 			}
 

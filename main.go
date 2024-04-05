@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -42,13 +43,13 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	driver, err := neo4j.NewDriverWithContext("neo4j://localhost", neo4j.NoAuth())
 	if err != nil {
 		slog.Error("failed to create neo4j driver", slog.Any("error", err))
-		return nil, err
+		return nil, fmt.Errorf("failed to create neo4j driver: %w", err)
 	}
 
 	slog.Debug("verifying neo4j driver connectivity")
 	if err := driver.VerifyConnectivity(ctx); err != nil {
 		slog.Error("failed to verify neo4j driver connectivity", slog.Any("error", err))
-		return nil, err
+		return nil, fmt.Errorf("failed to verify neo4j driver connectivity: %w", err)
 	}
 
 	slog.Debug("creating neo4j session")
@@ -58,12 +59,12 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	slog.Debug("creating neo4j indexes")
 	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.name);", nil); err != nil {
 		slog.Error("failed to create index on :Module(name)", slog.Any("error", err))
-		return nil, err
+		return nil, fmt.Errorf("failed to create index on :Module(name): %w", err)
 	}
 
 	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.version);", nil); err != nil {
 		slog.Error("failed to create index on :Module(version)", slog.Any("error", err))
-		return nil, err
+		return nil, fmt.Errorf("failed to create index on :Module(version): %w", err)
 	}
 
 	return driver, nil
