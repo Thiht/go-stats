@@ -155,6 +155,11 @@ func RepositoriesToModulesHandler() command.Handler {
 						return nil
 					}
 
+					if !isValidModulePath(parsedFile.Module.Mod.Path) {
+						logger.Warn("invalid module path", slog.String("module", parsedFile.Module.Mod.Path))
+						return nil
+					}
+
 					mxModules.Lock()
 					modules = append(modules, parsedFile.Module.Mod)
 					mxModules.Unlock()
@@ -211,4 +216,16 @@ func normalizeRepository(repository string) (string, error) {
 	}
 
 	return repository, nil
+}
+
+func isValidModulePath(modulePath string) bool {
+	if !strings.Contains(modulePath, ".") {
+		return false
+	}
+
+	if strings.HasSuffix(modulePath, ".go") {
+		return false
+	}
+
+	return true
 }
