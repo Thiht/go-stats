@@ -34,4 +34,4 @@ rm /tmp/awesome-go.md
 
 # seed
 
-cat data/top100.txt data/awesome-go.txt | xargs -n1 | sort -u > data/seed.txt
+cat data/hand-picked.txt data/top100.txt data/awesome-go.txt | xargs -n1 | sort -u > data/seed.txt

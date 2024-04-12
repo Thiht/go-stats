@@ -1,0 +1,4 @@
+https://github.com/smocker-dev/smocker
+https://github.com/ovh/venom
+https://github.com/golangci/golangci-lint
+https://github.com/hashicorp/terraform
