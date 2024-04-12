@@ -232,6 +232,7 @@ https://github.com/omeid/uconfig
 https://github.com/spf13/viper
 https://github.com/adrg/xdg
 https://github.com/OpenPeeDeeP/xdg
+https://bencher.dev
 https://github.com/ovh/cds
 https://github.com/opnlabs/dot
 https://github.com/drone/drone
@@ -1336,6 +1337,7 @@ https://github.com/ian-kent/linkio
 https://github.com/kirillDanshin/llb
 https://github.com/hashicorp/mdns
 https://eclipse.org/paho/clients/golang
+https://github.com/soypat/natiu-mqtt
 https://github.com/lesismal/nbio
 https://github.com/cloudwego/netpoll
 https://github.com/intel-go/nff-go
@@ -2363,6 +2365,7 @@ https://github.com/shopify/toxiproxy
 https://tsuru.io
 https://github.com/lingrino/vaku
 https://github.com/VerizonDigital/vflow
+https://waveterm.dev
 https://github.com/wellington/wellington
 https://github.com/get-woke/woke
 https://github.com/ekkinox/yai

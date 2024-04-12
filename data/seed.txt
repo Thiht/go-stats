@@ -3,6 +3,7 @@ http://github.com/bobg/hashsplit
 http://github.com/boot-go/boot
 http://github.com/rueian/rueidis
 https://aahframework.org
+https://bencher.dev
 https://bitbucket.org/rj/goey/src/master
 https://blitiri.com.ar/p/chasquid
 https://cirello.io/dynamolock
@@ -1098,7 +1099,6 @@ https://github.com/hailocab/go-geoindex
 https://github.com/hajimehoshi/ebiten
 https://github.com/hajimehoshi/oto
 https://github.com/hako/durafmt
-https://github.com/halfrost/LeetCode-Go
 https://github.com/hamed-yousefi/gowl
 https://github.com/happy-sdk/happy/tree/main/pkg/strings/bexp
 https://github.com/harfang3d/harfang3d
@@ -1695,6 +1695,7 @@ https://github.com/olebedev/go-tgbot
 https://github.com/olebedev/when
 https://github.com/olivere/elastic
 https://github.com/olivia-ai/olivia
+https://github.com/ollama/ollama
 https://github.com/olvrng/ujson
 https://github.com/omeid/go-resources
 https://github.com/omeid/uconfig
@@ -1727,6 +1728,7 @@ https://github.com/otiai10/ocrserver
 https://github.com/otiai10/openaigo
 https://github.com/ovh/cds
 https://github.com/ovh/utask
+https://github.com/ovh/venom
 https://github.com/owenthereal/upterm
 https://github.com/owulveryck/onnx-go
 https://github.com/oxyno-zeta/s3-proxy
@@ -2033,6 +2035,7 @@ https://github.com/smallnest/go-web-framework-benchmark
 https://github.com/smallnest/rpcx
 https://github.com/smancke/guble
 https://github.com/smira/aptly
+https://github.com/smocker-dev/smocker
 https://github.com/snwfdhmp/errlog
 https://github.com/socifi/jazz
 https://github.com/solher/arangolite
@@ -2048,6 +2051,7 @@ https://github.com/sostronk/go-steam
 https://github.com/sourcegraph/conc
 https://github.com/sourcegraph/go-vcs
 https://github.com/soypat/godesim
+https://github.com/soypat/natiu-mqtt
 https://github.com/soypat/rebed
 https://github.com/spf13/afero
 https://github.com/spf13/cobra
@@ -2093,7 +2097,6 @@ https://github.com/svcavallar/celeriac.v1
 https://github.com/switchupcb/copygen
 https://github.com/swithek/sessionup
 https://github.com/sybrexsys/RapidMQ
-https://github.com/syncthing/syncthing
 https://github.com/syndtr/goleveldb
 https://github.com/syntaqx/serve
 https://github.com/szyhf/go-excel
@@ -2440,6 +2443,7 @@ https://sourcegraph.com/github.com/sqs/goreturns
 https://syncthing.net
 https://tsuru.io
 https://wails.io
+https://waveterm.dev
 https://wide.b3log.org/login
 https://www.consul.io
 https://www.docker.com
