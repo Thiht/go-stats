@@ -3,7 +3,7 @@ module github.com/Thiht/go-stats
 go 1.22.1
 
 require (
-	github.com/Thiht/go-command v0.0.0-20231029214515-d41425a1c673
+	github.com/Thiht/go-command v0.0.0-20240405143921-56eb37e00945
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.18.0

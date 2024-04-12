@@ -27,12 +27,12 @@ func main() {
 
 	goProxyClient := goproxy.NewGoProxyClient()
 
-	root := command.Root(nil)
-	root.SubCommand("repositories-to-modules", cmd.RepositoriesToModulesHandler()).Flags(func(flagSet *flag.FlagSet) {
+	root := command.Root()
+	root.SubCommand("repositories-to-modules").Action(cmd.RepositoriesToModulesHandler()).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("input-file", "", "")
 		flagSet.String("output-file", "", "")
 	})
-	root.SubCommand("process-modules", cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
+	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("seed-file", "", "")
 	})
 	root.Execute(ctx)

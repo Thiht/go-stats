@@ -7,6 +7,8 @@ github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 h1:kkhsdkhsCv
 github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371/go.mod h1:EjAoLdwvbIOoOQr3ihjnSoLZRtE8azugULFRteWMNc0=
 github.com/Thiht/go-command v0.0.0-20231029214515-d41425a1c673 h1:j061MT58m8xrYXsvIVVEPiTDZKy522BqEC12j/Pc3R8=
 github.com/Thiht/go-command v0.0.0-20231029214515-d41425a1c673/go.mod h1:FUs6mjIaE59iG0yeWrZyPOWZ4Dzt/ejODE3xQ6eSzfo=
+github.com/Thiht/go-command v0.0.0-20240405143921-56eb37e00945 h1:YIW/uGIrTii1cSW0Im3r+Ld8mfQzH1AgetFnkJLrFgI=
+github.com/Thiht/go-command v0.0.0-20240405143921-56eb37e00945/go.mod h1:FUs6mjIaE59iG0yeWrZyPOWZ4Dzt/ejODE3xQ6eSzfo=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
