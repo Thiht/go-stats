@@ -83,7 +83,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 					if errors.Is(err, goproxy.ErrModuleNotFound) {
 						// This means the module is not depended on by any other module
 						// It can happen with seeds because they sometimes contain multiple go.mod files and we process all of them for now
-						logger.Warn("module not found")
+						logger.Warn("failed to get latest module info", slog.Any("error", err))
 						return nil
 					}
 
@@ -98,7 +98,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 			if err != nil {
 				if errors.Is(err, goproxy.ErrModuleNotFound) {
 					// This means the module doesn't have a go.mod file
-					logger.Warn("module not found")
+					logger.Warn("failed to get module go.mod file", slog.Any("error", err))
 					return nil
 				}
 
