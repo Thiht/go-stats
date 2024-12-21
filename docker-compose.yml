@@ -1,6 +1,6 @@
 services:
   neo4j:
-    image: neo4j:5.18
+    image: neo4j:5
     restart: always
     ports:
       - 7474:7474
