@@ -16,7 +16,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
 	driver, err := setupNeo4j(ctx)
 	if err != nil {
@@ -29,6 +29,9 @@ func main() {
 
 	root := command.Root()
 	root.SubCommand("repositories-to-modules").Action(cmd.RepositoriesToModulesHandler()).Flags(func(flagSet *flag.FlagSet) {
+		flagSet.String("input-file", "./data/seed.txt", "File containing a list of Go repositories to convert to Go module paths")
+		flagSet.String("output-file", "./data/seed-modules.txt", "Output file containing the list of Go module paths")
+	})
 	root.SubCommand("list-goproxy-modules").Action(cmd.ListGoProxyModulesHandler(goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("since", "2019-04-10T19:08:52.997264Z", "List modules since this date")
 		flagSet.String("output-file", "./data/go-proxy-modules.txt", "Output file containing the list of Go module paths")
