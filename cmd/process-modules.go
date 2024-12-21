@@ -78,7 +78,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 
 			if modulePath.Version == "" {
 				logger.Debug("getting latest module info")
-				moduleInfo, err := goProxyClient.GetModuleLatestInfo(ctx, modulePath.Path)
+				moduleInfo, err := goProxyClient.GetModuleLatestInfo(ctx, modulePath.Path, true)
 				if err != nil {
 					if errors.Is(err, goproxy.ErrModuleNotFound) {
 						// This means the module is not depended on by any other module
@@ -94,7 +94,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 				modulePath.Version = moduleInfo.Version
 			}
 
-			modFile, err := goProxyClient.GetModuleModFile(ctx, modulePath.Path, modulePath.Version)
+			modFile, err := goProxyClient.GetModuleModFile(ctx, modulePath.Path, modulePath.Version, true)
 			if err != nil {
 				if errors.Is(err, goproxy.ErrModuleNotFound) {
 					// This means the module doesn't have a go.mod file
@@ -103,7 +103,7 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 				}
 
 				logger.Error("failed to get module go.mod file", slog.Any("error", err))
-				return fmt.Errorf("failed to get module go.mod file: %w", err)
+				return nil
 			}
 
 			if modFile.Module == nil {

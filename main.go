@@ -29,8 +29,9 @@ func main() {
 
 	root := command.Root()
 	root.SubCommand("repositories-to-modules").Action(cmd.RepositoriesToModulesHandler()).Flags(func(flagSet *flag.FlagSet) {
-		flagSet.String("input-file", "", "")
-		flagSet.String("output-file", "", "")
+	root.SubCommand("list-goproxy-modules").Action(cmd.ListGoProxyModulesHandler(goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
+		flagSet.String("since", "2019-04-10T19:08:52.997264Z", "List modules since this date")
+		flagSet.String("output-file", "./data/go-proxy-modules.txt", "Output file containing the list of Go module paths")
 	})
 	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("seed-file", "", "")
