@@ -80,15 +80,23 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 				logger.Debug("getting latest module info")
 				moduleInfo, err := goProxyClient.GetModuleLatestInfo(ctx, modulePath.Path, true)
 				if err != nil {
-					if errors.Is(err, goproxy.ErrModuleNotFound) {
-						// This means the module is not depended on by any other module
-						// It can happen with seeds because they sometimes contain multiple go.mod files and we process all of them for now
-						logger.Warn("failed to get latest module info", slog.Any("error", err))
+					if !errors.Is(err, goproxy.ErrModuleNotFound) {
+						logger.Error("failed to get latest module info", slog.Any("error", err), slog.Bool("cached", true))
 						return nil
 					}
 
-					logger.Error("failed to get latest module info", slog.Any("error", err))
-					return fmt.Errorf("failed to get latest module info: %w", err)
+					moduleInfo, err = goProxyClient.GetModuleLatestInfo(ctx, modulePath.Path, false)
+					if err != nil {
+						if errors.Is(err, goproxy.ErrModuleNotFound) {
+							// This means the module is not depended on by any other module
+							// It can happen with seeds because they sometimes contain multiple go.mod files and we process all of them for now
+							logger.Warn("latest module info not found", slog.Any("error", err))
+							return nil
+						}
+
+						logger.Error("failed to get latest module info", slog.Any("error", err), slog.Bool("cached", false))
+						return nil
+					}
 				}
 
 				modulePath.Version = moduleInfo.Version
@@ -96,14 +104,32 @@ func processModules(ctx context.Context, modules []module.Version, knownModules 
 
 			modFile, err := goProxyClient.GetModuleModFile(ctx, modulePath.Path, modulePath.Version, true)
 			if err != nil {
-				if errors.Is(err, goproxy.ErrModuleNotFound) {
-					// This means the module doesn't have a go.mod file
-					logger.Warn("failed to get module go.mod file", slog.Any("error", err))
+				if errors.Is(err, goproxy.ErrInvalidModFile) {
+					logger.Warn("invalid go.mod file", slog.Any("error", err))
 					return nil
 				}
 
-				logger.Error("failed to get module go.mod file", slog.Any("error", err))
-				return nil
+				if !errors.Is(err, goproxy.ErrModuleNotFound) {
+					logger.Error("failed to get module go.mod file", slog.Any("error", err), slog.Bool("cached", true))
+					return nil
+				}
+
+				modFile, err = goProxyClient.GetModuleModFile(ctx, modulePath.Path, modulePath.Version, false)
+				if err != nil {
+					if errors.Is(err, goproxy.ErrInvalidModFile) {
+						logger.Warn("invalid go.mod file", slog.Any("error", err))
+						return nil
+					}
+
+					if errors.Is(err, goproxy.ErrModuleNotFound) {
+						// This means the module doesn't have a go.mod file
+						logger.Warn("module go.mod file not found", slog.Any("error", err))
+						return nil
+					}
+
+					logger.Error("failed to get module go.mod file", slog.Any("error", err), slog.Bool("cached", false))
+					return nil
+				}
 			}
 
 			if modFile.Module == nil {

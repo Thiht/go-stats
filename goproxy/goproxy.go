@@ -51,7 +51,10 @@ func NewGoProxyClient() Client {
 	}
 }
 
-var ErrModuleNotFound = errors.New("module not found")
+var (
+	ErrModuleNotFound = errors.New("module not found")
+	ErrInvalidModFile = errors.New("invalid mod file")
+)
 
 const ListIndexMaxLimit = 2000
 
@@ -190,7 +193,7 @@ func (c *client) GetModuleModFile(ctx context.Context, modulePath, version strin
 
 	file, err := modfile.Parse("go.mod", data, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse response as modfile: %w", err)
+		return nil, fmt.Errorf("failed to parse response as modfile: %w", ErrInvalidModFile)
 	}
 
 	return file, nil
