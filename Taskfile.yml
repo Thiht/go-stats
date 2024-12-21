@@ -1,0 +1,25 @@
+version: '3'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  pre-process:
+    desc: Convert the repositories URLs to Go module paths.
+    sources:
+      - ./data/seed.txt
+    generates:
+      - ./data/seed-modules.txt
+    cmds:
+      - go run . repositories-to-modules -input-file=./data/seed.txt -output-file=./data/seed-modules.txt
+
+  process:
+    desc: Process the modules.
+    deps:
+      - pre-process
+    cmds:
+      - go run . process-modules -seed-file=./data/go-proxy-modules.txt
+
+
