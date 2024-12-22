@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 
 	"github.com/Thiht/go-command"
 	"github.com/Thiht/go-stats/cmd"
@@ -37,6 +38,7 @@ func main() {
 		flagSet.String("output-file", "./data/go-proxy-modules.txt", "Output file containing the list of Go module paths")
 	})
 	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
+		flagSet.Int("parallel", runtime.NumCPU(), "Number of parallel workers")
 		flagSet.String("seed-file", "", "")
 	})
 	root.Execute(ctx)
@@ -69,6 +71,11 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.version);", nil); err != nil {
 		slog.Error("failed to create index on :Module(version)", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to create index on :Module(version): %w", err)
+	}
+
+	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.org);", nil); err != nil {
+		slog.Error("failed to create index on :Module(org)", slog.Any("error", err))
+		return nil, fmt.Errorf("failed to create index on :Module(org): %w", err)
 	}
 
 	return driver, nil

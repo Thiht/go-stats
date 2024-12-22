@@ -47,7 +47,9 @@ type Client interface {
 
 func NewGoProxyClient() Client {
 	return &client{
-		httpClient: &http.Client{},
+		httpClient: &http.Client{
+			Timeout: 3 * time.Second,
+		},
 	}
 }
 
