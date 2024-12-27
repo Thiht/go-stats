@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -23,6 +22,12 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 			return 1
 		}
 
+		until, err := time.Parse(time.RFC3339, command.Lookup[string](flagSet, "until"))
+		if err != nil {
+			slog.Error("failed to parse \"until\"", slog.String("until", command.Lookup[string](flagSet, "until")), slog.Any("error", err))
+			return 1
+		}
+
 		outputFile := command.Lookup[string](flagSet, "output-file")
 
 		slog.Debug("opening output file", slog.String("file", outputFile))
@@ -33,15 +38,12 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 		}
 		defer outputFileHandler.Close()
 
-		nbDays := int64(time.Since(since).Hours() / 24)
+		nbDays := int64(until.Sub(since).Hours() / 24)
 		progress := progressbar.Default(nbDays, since.Format("2006-01-02"))
 
 		chIndex := make(chan []goproxy.Index)
 		go func() {
-			defer func() {
-				fmt.Println("closing index channel")
-				close(chIndex)
-			}()
+			defer close(chIndex)
 
 			for {
 				slog.Debug("listing index", slog.String("since", since.Format(time.RFC3339Nano)))
@@ -57,7 +59,7 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 				chIndex <- index
 
 				progress.Describe("Cursor: " + since.Format("2006-01-02"))
-				if err := progress.Set64(nbDays - int64(time.Since(since).Hours()/24)); err != nil {
+				if err := progress.Set64(nbDays - int64(until.Sub(since).Hours()/24)); err != nil {
 					slog.Error("failed to update progress", slog.Any("error", err))
 					return
 				}
@@ -67,11 +69,16 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 					break
 				}
 
+				if since.After(until) {
+					slog.Debug("reached until date")
+					break
+				}
+
 				time.Sleep(100 * time.Millisecond)
 			}
 		}()
 
-		modulesSet := sync.Map{}
+		var modulesSet sync.Map
 		for index := range chIndex {
 			for _, i := range index {
 				path := strings.ToLower(i.Path)
@@ -81,7 +88,7 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 				}
 				modulesSet.Store(path, struct{}{})
 
-				if _, err := outputFileHandler.WriteString(path + "\n"); err != nil {
+				if _, err := outputFileHandler.WriteString(path + " " + i.Version + "\n"); err != nil {
 					slog.Error("failed to write module", slog.String("module", path), slog.Any("error", err))
 					continue
 				}

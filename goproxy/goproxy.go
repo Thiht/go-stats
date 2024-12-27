@@ -69,7 +69,7 @@ func (c *client) ListIndex(ctx context.Context, since time.Time) ([]Index, error
 	queryParams := request.URL.Query()
 	queryParams.Add("since", since.Format(time.RFC3339Nano))
 	queryParams.Add("limit", strconv.Itoa(ListIndexMaxLimit))
-	queryParams.Add("include", "")
+	queryParams.Add("include", "all")
 	request.URL.RawQuery = queryParams.Encode()
 
 	response, err := c.httpClient.Do(request)

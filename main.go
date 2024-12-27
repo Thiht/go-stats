@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/Thiht/go-command"
 	"github.com/Thiht/go-stats/cmd"
@@ -17,7 +18,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn})))
 
 	driver, err := setupNeo4j(ctx)
 	if err != nil {
@@ -35,6 +36,7 @@ func main() {
 	})
 	root.SubCommand("list-goproxy-modules").Action(cmd.ListGoProxyModulesHandler(goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("since", "2019-04-10T19:08:52.997264Z", "List modules since this date")
+		flagSet.String("until", time.Now().Format(time.RFC3339Nano), "List modules until this date")
 		flagSet.String("output-file", "./data/go-proxy-modules.txt", "Output file containing the list of Go module paths")
 	})
 	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
