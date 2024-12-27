@@ -5,8 +5,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/ProtonMail/go-crypto v1.1.3 h1:nRBOetoydLeUb4nHajyO2bKqMLfWQ/ZPwkXqXxPxCFk=
 github.com/ProtonMail/go-crypto v1.1.3/go.mod h1:rA3QumHc/FZ8pAHreoekgiAbzpNsfQAosU5td4SnOrE=
-github.com/Thiht/go-command v0.0.0-20240526170158-2042e8163b8b h1:pHFKE0JzhDLn8zrS/n6npU0c3ESsZk7/k0cojkK1VTM=
-github.com/Thiht/go-command v0.0.0-20240526170158-2042e8163b8b/go.mod h1:FUs6mjIaE59iG0yeWrZyPOWZ4Dzt/ejODE3xQ6eSzfo=
+github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845 h1:w3frWnsxbUap82WXCWV88Gkb0gXOfPXhZ0b9sc0K3NM=
+github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845/go.mod h1:ryaWWosdXuUcUhwM9cr/3xlg/4CXhBs1S70CBO4gYcc=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=

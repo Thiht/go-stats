@@ -29,7 +29,21 @@ func main() {
 
 	goProxyClient := goproxy.NewGoProxyClient()
 
-	root := command.Root()
+	root := command.Root().Flags(func(flagSet *flag.FlagSet) {
+		flagSet.String("log-level", "warn", "Log level (debug, info, warn, error)")
+	}).Middlewares(func(next command.Handler) command.Handler {
+		return func(ctx context.Context, flagSet *flag.FlagSet, args []string) int {
+			var level slog.Level
+			if err := level.UnmarshalText([]byte(command.Lookup[string](flagSet, "log-level"))); err != nil {
+				slog.Error("invalid log level, fallback to warn", slog.Any("error", err))
+				level = slog.LevelWarn
+			}
+
+			slog.SetLogLoggerLevel(level)
+
+			return next(ctx, flagSet, args)
+		}
+	})
 	root.SubCommand("repositories-to-modules").Action(cmd.RepositoriesToModulesHandler()).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("input-file", "./data/seed.txt", "File containing a list of Go repositories to convert to Go module paths")
 		flagSet.String("output-file", "./data/seed-modules.txt", "Output file containing the list of Go module paths")
