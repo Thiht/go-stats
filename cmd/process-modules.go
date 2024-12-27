@@ -302,7 +302,15 @@ func processModule(ctx context.Context, modulePath module.Version, goProxyClient
 func extractOrg(modulePath string) string {
 	switch {
 	case strings.HasPrefix(modulePath, "github.com/"):
-		return strings.Split(modulePath, "/")[1]
+		org := strings.Split(modulePath, "/")[1]
+
+		switch org {
+		case "pkg":
+			return "golang"
+
+		default:
+			return org
+		}
 
 	case strings.HasPrefix(modulePath, "google.golang.org/"):
 		return "google"
@@ -326,7 +334,11 @@ func extractOrg(modulePath string) string {
 
 	case strings.HasPrefix(modulePath, "go.mongodb.org/"):
 		return "mongodb"
-	}
 
-	return ""
+	case strings.HasPrefix(modulePath, "go.etcd.io/"):
+		return "etcd-io"
+
+	default:
+		return ""
+	}
 }
