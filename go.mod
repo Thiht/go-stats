@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/go-git/go-git/v5 v5.16.2
+	github.com/go-git/go-git/v5 v5.16.3
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.3
 	github.com/schollz/progressbar/v3 v3.18.0
 	golang.org/x/mod v0.28.0
