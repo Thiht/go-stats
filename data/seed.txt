@@ -186,6 +186,7 @@ https://github.com/RichardKnop/go-fixtures
 https://github.com/RichardKnop/jsonhal
 https://github.com/RichardKnop/machinery
 https://github.com/RoaringBitmap/roaring
+https://github.com/SagerNet/sing-box
 https://github.com/SaiNageswarS/go-api-boot
 https://github.com/SaidinWoT/timespan
 https://github.com/SchwarzIT/hypermatch
@@ -256,6 +257,7 @@ https://github.com/abecodes/dft
 https://github.com/abemedia/go-don
 https://github.com/abhimanyu003/sttr
 https://github.com/abice/go-enum
+https://github.com/abiosoft/colima
 https://github.com/abrahambotros/lore
 https://github.com/abraithwaite/jeff
 https://github.com/abusomani/go-palette
@@ -432,6 +434,7 @@ https://github.com/atelpis/enflag
 https://github.com/atemerev/skynet
 https://github.com/augmentable-dev/tickgit
 https://github.com/aurelien-rainone/go-rquad
+https://github.com/authelia/authelia
 https://github.com/authzed/spicedb
 https://github.com/auyer/steganography
 https://github.com/avahidi/interpol
@@ -462,6 +465,7 @@ https://github.com/barasher/go-exiftool
 https://github.com/bart6114/cheek
 https://github.com/bartventer/gorm-multitenancy
 https://github.com/barweiss/go-tuple
+https://github.com/base/node
 https://github.com/bcicen/ctop
 https://github.com/bdjimmy/gbind
 https://github.com/beatlabs/harvester
@@ -477,6 +481,7 @@ https://github.com/benmanns/goworker
 https://github.com/benthosdev/benthos
 https://github.com/beyang/hgo
 https://github.com/bhmj/jsonslice
+https://github.com/binwiederhier/ntfy
 https://github.com/biter777/countries
 https://github.com/bitfield/gotestdox
 https://github.com/bitfield/qrand
@@ -615,6 +620,7 @@ https://github.com/clevergo/jsend
 https://github.com/cli/cli
 https://github.com/clok/kemba
 https://github.com/cloudflare/cloudflared
+https://github.com/cloudreve/cloudreve
 https://github.com/cloudwego/hertz
 https://github.com/cloudwego/kitex
 https://github.com/cloudwego/netpoll
@@ -693,7 +699,6 @@ https://github.com/dancannon/gorethink
 https://github.com/daneharrigan/hipchat
 https://github.com/danieldk/go2vec
 https://github.com/danielgtaylor/huma
-https://github.com/danielmiessler/fabric
 https://github.com/dannyvankooten/vat
 https://github.com/dapr/dapr
 https://github.com/dastoori/higgs
@@ -957,6 +962,7 @@ https://github.com/git-time-metric/gtm
 https://github.com/github/go-fault
 https://github.com/github/hub
 https://github.com/gizak/termui
+https://github.com/glanceapp/glance
 https://github.com/gliderlabs/ssh
 https://github.com/globalsign/mgo
 https://github.com/glycerine/bambam
@@ -967,7 +973,6 @@ https://github.com/go-acme/lego
 https://github.com/go-chi/chi
 https://github.com/go-co-op/gocron
 https://github.com/go-critic/go-critic
-https://github.com/go-delve/delve
 https://github.com/go-eagle/eagle
 https://github.com/go-ego/gse
 https://github.com/go-ffmt/ffmt
@@ -1127,7 +1132,6 @@ https://github.com/goreleaser/goreleaser
 https://github.com/gorgonia/gorgonia
 https://github.com/gorilla/csrf
 https://github.com/gorilla/mux
-https://github.com/gorilla/websocket
 https://github.com/goroute/route
 https://github.com/goschtalt/approx
 https://github.com/gosimple/slug
@@ -1273,7 +1277,6 @@ https://github.com/imroc/req
 https://github.com/in-toto/in-toto-golang
 https://github.com/inconshreveable/gonative
 https://github.com/inconshreveable/log15
-https://github.com/inconshreveable/ngrok
 https://github.com/incu6us/goimports-reviser
 https://github.com/indeedeng/iwf
 https://github.com/influxdb/influxdb
@@ -1656,7 +1659,6 @@ https://github.com/minus5/gofreetds
 https://github.com/miolini/datacounter
 https://github.com/miolini/jsonf
 https://github.com/mirecl/catboost-cgo
-https://github.com/mislav/hub
 https://github.com/mitchellh/packer
 https://github.com/mjibson/go-dsp
 https://github.com/mjl-/mox
@@ -1949,6 +1951,7 @@ https://github.com/primetalk/goio
 https://github.com/prisma/prisma-client-go
 https://github.com/profe-ajedrez/obreron
 https://github.com/progrium/darwinkit
+https://github.com/projectdiscovery/nuclei
 https://github.com/prometheus/prometheus
 https://github.com/psampaz/go-mod-outdated
 https://github.com/psampaz/gothanks
@@ -1964,7 +1967,6 @@ https://github.com/qmuntal/opc
 https://github.com/qmuntal/stateless
 https://github.com/quagmt/udecimal
 https://github.com/quantumcycle/metaerr
-https://github.com/quii/learn-go-with-tests
 https://github.com/quii/mockingjay-server
 https://github.com/qustavo/sqlhooks
 https://github.com/rabbitmq/amqp091-go
@@ -2252,6 +2254,7 @@ https://github.com/syntaqx/env
 https://github.com/syntaqx/serve
 https://github.com/szyhf/go-excel
 https://github.com/szyhf/go-gcache
+https://github.com/tailscale/tailscale
 https://github.com/tal-tech/go-zero
 https://github.com/tarent/loginsrv
 https://github.com/tarmac-project/tarmac

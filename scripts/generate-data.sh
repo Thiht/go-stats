@@ -4,8 +4,7 @@ cd "$(dirname "$0")/.." || exit 1
 
 # Github-Ranking
 
-date=2024-10-23 # see: https://github.com/EvanLi/Github-Ranking/issues/42
-# date=$(date +%Y-%m-%d)
+date=$(date +%Y-%m-%d)
 
 curl -Lo /tmp/github-ranking.csv "https://raw.githubusercontent.com/EvanLi/Github-Ranking/master/Data/github-ranking-$date.csv"
 
