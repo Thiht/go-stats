@@ -140,9 +140,11 @@ func loadInitialModules(seedFile string) ([]module.Version, error) {
 	modules := make([]module.Version, 0, estimatedCount)
 	scanner := bufio.NewScanner(seedFileHandler)
 	for scanner.Scan() {
-		modulePath := scanner.Text()
+		line := scanner.Text()
+		modulePath, moduleVersion, _ := strings.Cut(line, " ")
 		modules = append(modules, module.Version{
 			Path: strings.ToLower(modulePath),
+			Version: moduleVersion,
 		})
 	}
 	if err := scanner.Err(); err != nil {
