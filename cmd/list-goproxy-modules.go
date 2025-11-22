@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/Thiht/go-command"
@@ -38,60 +38,47 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 		}
 		defer outputFileHandler.Close()
 
+		bufferedWriter := bufio.NewWriter(outputFileHandler)
+		defer bufferedWriter.Flush()
+
 		nbDays := int64(until.Sub(since).Hours() / 24)
 		progress := progressbar.Default(nbDays, since.Format("2006-01-02"))
 
-		chIndex := make(chan []goproxy.Index)
+		chIndex := make(chan goproxy.Index, goproxy.ListIndexMaxLimit)
 		go func() {
 			defer close(chIndex)
 
-			for {
-				slog.Debug("listing index", slog.String("since", since.Format(time.RFC3339Nano)))
-				index, err := goProxyClient.ListIndex(ctx, since)
+			for index, err := range goProxyClient.IterIndex(ctx, since) {
 				if err != nil {
 					slog.Error("failed to list index", slog.Any("error", err))
 					return
 				}
 
-				slog.Debug("received index", slog.Int("count", len(index)))
-
-				since = index[len(index)-1].Timestamp
-				chIndex <- index
-
-				progress.Describe("Cursor: " + since.Format("2006-01-02"))
-				if err := progress.Set64(nbDays - int64(until.Sub(since).Hours()/24)); err != nil {
+				chIndex <- index.Index
+				progress.Describe("Cursor: " + index.Current.Format("2006-01-02"))
+				if err := progress.Set64(nbDays - int64(until.Sub(index.Current).Hours()/24)); err != nil {
 					slog.Error("failed to update progress", slog.Any("error", err))
 					return
 				}
 
-				if len(index) < goproxy.ListIndexMaxLimit {
-					slog.Debug("no more index to list")
-					break
-				}
-
-				if since.After(until) {
+				if index.Current.After(until) {
 					slog.Debug("reached until date")
 					break
 				}
-
-				time.Sleep(100 * time.Millisecond)
 			}
 		}()
 
-		var modulesSet sync.Map
-		for index := range chIndex {
-			for _, i := range index {
-				path := strings.ToLower(i.Path)
+		modulesSet := map[string]struct{}{}
+		for i := range chIndex {
+			key := i.Path + "@" + i.Version
+			if _, exists := modulesSet[key]; exists {
+				continue
+			}
+			modulesSet[key] = struct{}{}
 
-				if _, ok := modulesSet.Load(path); ok {
-					continue
-				}
-				modulesSet.Store(path, struct{}{})
-
-				if _, err := outputFileHandler.WriteString(path + " " + i.Version + "\n"); err != nil {
-					slog.Error("failed to write module", slog.String("module", path), slog.Any("error", err))
-					continue
-				}
+			if _, err := fmt.Fprintf(bufferedWriter, "%s %s\n", i.Path, i.Version); err != nil {
+				slog.Error("failed to write module", slog.String("module", i.Path), slog.String("version", i.Version), slog.Any("error", err))
+				continue
 			}
 		}
 

@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/mod/modfile"
@@ -39,6 +41,7 @@ type client struct {
 }
 
 type Client interface {
+	IterIndex(ctx context.Context, since time.Time) iter.Seq2[IterIndex, error]
 	ListIndex(ctx context.Context, since time.Time) ([]Index, error)
 	GetModuleLatestInfo(ctx context.Context, modulePath string, cachedOnly bool) (ModuleInfo, error)
 	GetModuleInfo(ctx context.Context, modulePath, version string, cachedOnly bool) (ModuleInfo, error)
@@ -57,6 +60,32 @@ var (
 	ErrModuleNotFound = errors.New("module not found")
 	ErrInvalidModFile = errors.New("invalid mod file")
 )
+
+type IterIndex struct {
+	Index   Index
+	Current time.Time
+}
+
+func (c *client) IterIndex(ctx context.Context, since time.Time) iter.Seq2[IterIndex, error] {
+	return func(yield func(IterIndex, error) bool) {
+		for {
+			index, err := c.ListIndex(ctx, since)
+			if err != nil {
+				yield(IterIndex{}, err)
+				return
+			}
+
+			for _, i := range index {
+				if !yield(IterIndex{Index: i, Current: since}, nil) {
+					return
+				}
+			}
+
+			since = index[len(index)-1].Timestamp
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
 
 const ListIndexMaxLimit = 2000
 
@@ -107,7 +136,7 @@ func (c *client) GetModuleLatestInfo(ctx context.Context, modulePath string, cac
 		cachedOnlyPath = "/cached-only"
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL+cachedOnlyPath+"/"+modulePath+"/@latest", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL+cachedOnlyPath+"/"+strings.ToLower(modulePath)+"/@latest", nil)
 	if err != nil {
 		return ModuleInfo{}, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -140,7 +169,7 @@ func (c *client) GetModuleInfo(ctx context.Context, modulePath, version string, 
 		cachedOnlyPath = "/cached-only"
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL+cachedOnlyPath+"/"+modulePath+"/@v/"+version+".info", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL+cachedOnlyPath+"/"+strings.ToLower(modulePath)+"/@v/"+version+".info", nil)
 	if err != nil {
 		return ModuleInfo{}, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -169,7 +198,7 @@ func (c *client) GetModuleModFile(ctx context.Context, modulePath, version strin
 		cachedOnlyPath = "/cached-only"
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL+cachedOnlyPath+"/"+modulePath+"/@v/"+version+".mod", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, proxyURL+cachedOnlyPath+"/"+strings.ToLower(modulePath)+"/@v/"+version+".mod", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
