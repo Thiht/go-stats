@@ -32,17 +32,27 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 			return 1
 		}
 
-		nbModules := int64(len(initialModules))
-		var mxNbModules sync.Mutex
-
-		g, gCtx := errgroup.WithContext(ctx)
-		sem := make(chan struct{}, parallel)
-
-		progress := progressbar.Default(nbModules)
+		var (
+			nbModules        = int64(len(initialModules))
+			processedModules = int64(0)
+			progress         = progressbar.Default(nbModules)
+			mxNbModules      sync.Mutex
+		)
 
 		var pendingModules sync.Map
+
 		chModules := make(chan module.Version, 1_000)
+		var wgModules sync.WaitGroup
+		wgModules.Add(2)
+
 		go func() {
+			wgModules.Wait()
+			close(chModules)
+		}()
+
+		go func() {
+			defer wgModules.Done()
+
 			for _, m := range initialModules {
 				if _, loaded := pendingModules.LoadOrStore(m.Path, struct{}{}); loaded {
 					mxNbModules.Lock()
@@ -58,6 +68,9 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 
 			slog.Debug("closing module channel")
 		}()
+
+		g, gCtx := errgroup.WithContext(ctx)
+		sem := make(chan struct{}, parallel)
 
 		for m := range chModules {
 			g.Go(func() error {
@@ -91,6 +104,9 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 					mxNbModules.Lock()
 					nbModules += loadedDependencies
 					progress.ChangeMax64(nbModules)
+					if processedModules == nbModules {
+						wgModules.Done()
+					}
 					mxNbModules.Unlock()
 				}()
 
@@ -101,6 +117,9 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 				close(chDependencies)
 
 				slog.Debug("module processed", slog.String("module", m.Path))
+				mxNbModules.Lock()
+				processedModules++
+				mxNbModules.Unlock()
 
 				return nil
 			})
@@ -111,7 +130,6 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 			os.Exit(1)
 		}
 
-		// close(chModules)
 		close(sem)
 
 		return 0
@@ -143,7 +161,7 @@ func loadInitialModules(seedFile string) ([]module.Version, error) {
 		line := scanner.Text()
 		modulePath, moduleVersion, _ := strings.Cut(line, " ")
 		modules = append(modules, module.Version{
-			Path: strings.ToLower(modulePath),
+			Path:    strings.ToLower(modulePath),
 			Version: moduleVersion,
 		})
 	}
