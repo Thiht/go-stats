@@ -1,8 +1,6 @@
 module github.com/Thiht/go-stats
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25.0
 
 require (
 	github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845

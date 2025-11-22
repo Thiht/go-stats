@@ -26,10 +26,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var parallel = runtime.NumCPU()
-
 func RepositoriesToModulesHandler() command.Handler {
 	return func(ctx context.Context, flagSet *flag.FlagSet, _ []string) int {
+		parallel := runtime.NumCPU()
 		inputFile := command.Lookup[string](flagSet, "input-file")
 		outputFile := command.Lookup[string](flagSet, "output-file")
 

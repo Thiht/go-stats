@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 tasks:
   default:
@@ -6,20 +6,39 @@ tasks:
     cmds:
       - task --list
 
-  pre-process:
-    desc: Convert the repositories URLs to Go module paths.
+  process:
+    desc: Process the modules.
+    vars:
+      SEED: ./data/seed-goproxy.txt
+      PARALLEL: 64
+    cmds:
+      - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} > /tmp/process-modules.log
+
+  init-goproxy-seed:
+    desc: Initialize the seed file with Go modules from the Go proxy.
+    sources:
+      - ./data/goproxy-modules/*.txt.xz
+    generates:
+      - ./data/seed-goproxy.txt
+    cmds:
+      - (cd data/goproxy-modules ; ls *.txt.xz | xargs -I {} tar xJf {})
+      - cat data/goproxy-modules/*.txt > data/seed-goproxy.txt
+
+  init-seed:
+    desc: Initialize the seed file with GitHub repositories.
+    generates:
+      - ./data/awesome-go.txt
+      - ./data/seed.txt
+      - ./data/top10.txt
+      - ./data/top100.txt
+    cmds:
+      - bash scripts/init-seed.sh
+
+  convert-seed:
+    desc: Convert the seed repositories URLs from the seed to Go module paths.
     sources:
       - ./data/seed.txt
     generates:
       - ./data/seed-modules.txt
     cmds:
       - go run . repositories-to-modules -input-file=./data/seed.txt -output-file=./data/seed-modules.txt
-
-  process:
-    desc: Process the modules.
-    deps:
-      - pre-process
-    cmds:
-      - go run . process-modules -seed-file=./data/go-proxy-modules.txt
-
-
