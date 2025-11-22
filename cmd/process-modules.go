@@ -70,17 +70,14 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 		}()
 
 		g, gCtx := errgroup.WithContext(ctx)
-		sem := make(chan struct{}, parallel)
+		g.SetLimit(parallel)
 
 		for m := range chModules {
 			g.Go(func() error {
-				sem <- struct{}{}
 				defer func() {
 					if err := progress.Add(1); err != nil {
 						slog.Error("failed to update progress bar", slog.Any("error", err))
 					}
-
-					<-sem
 				}()
 
 				slog.Debug("processing module", slog.String("module", m.Path))
@@ -129,8 +126,6 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 			slog.Error("failed to process repositories", slog.Any("error", err))
 			os.Exit(1)
 		}
-
-		close(sem)
 
 		return 0
 	}
@@ -262,9 +257,11 @@ func processModule(ctx context.Context, modulePath module.Version, goProxyClient
 	}
 
 	logger.Debug("creating module node", slog.String("name", modFile.Module.Mod.Path), slog.String("version", modFile.Module.Mod.Version))
-	if _, err := neo4j.ExecuteQuery(ctx, driver, "MERGE (m:Module {name: $name, version: $version}) RETURN m", map[string]any{
+	if _, err := neo4j.ExecuteQuery(ctx, driver, "MERGE (m:Module {name: $name, version: $version, org: $org, host: $host}) RETURN m", map[string]any{
 		"name":    modFile.Module.Mod.Path,
 		"version": modFile.Module.Mod.Version,
+		"org":     extractOrg(modFile.Module.Mod.Path),
+		"host":    extractHost(modFile.Module.Mod.Path),
 	}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("")); err != nil {
 		logger.Error("failed to create module node", slog.String("name", modFile.Module.Mod.Path), slog.Any("error", err))
 		return nil, fmt.Errorf("failed to create module node: %w", err)
@@ -287,9 +284,11 @@ func processModule(ctx context.Context, modulePath module.Version, goProxyClient
 			"dependencyName":    dependency.Mod.Path,
 			"dependencyVersion": dependency.Mod.Version,
 			"dependencyOrg":     extractOrg(dependency.Mod.Path),
+			"dependencyHost":    extractHost(dependency.Mod.Path),
 			"dependentName":     modFile.Module.Mod.Path,
 			"dependentVersion":  modFile.Module.Mod.Version,
 			"dependentOrg":      extractOrg(modFile.Module.Mod.Path),
+			"dependentHost":     extractHost(modFile.Module.Mod.Path),
 		})
 	}
 
@@ -300,8 +299,8 @@ func processModule(ctx context.Context, modulePath module.Version, goProxyClient
 
 	if _, err := neo4j.ExecuteQuery(ctx, driver, `
 		UNWIND $dependencies AS dep
-		MERGE (dependency:Module {name: dep.dependencyName, version: dep.dependencyVersion, org: dep.dependencyOrg})
-		MERGE (dependent:Module {name: dep.dependentName, version: dep.dependentVersion, org: dep.dependentOrg})
+		MERGE (dependency:Module {name: dep.dependencyName, version: dep.dependencyVersion, org: dep.dependencyOrg, host: dep.dependencyHost})
+		MERGE (dependent:Module {name: dep.dependentName, version: dep.dependentVersion, org: dep.dependentOrg, host: dep.dependentHost})
 		MERGE (dependent)-[:DEPENDS_ON]->(dependency)
 		MERGE (dependency)-[:IS_DEPENDED_ON_BY]->(dependent)
 		RETURN dependency, dependent
@@ -319,25 +318,22 @@ func processModule(ctx context.Context, modulePath module.Version, goProxyClient
 	return dependsOn, nil
 }
 
+func extractHost(modulePath string) string {
+	return strings.Split(modulePath, "/")[0]
+}
+
 func extractOrg(modulePath string) string {
 	switch {
-	case strings.HasPrefix(modulePath, "github.com/"):
-		org := strings.Split(modulePath, "/")[1]
-
-		switch org {
-		case "pkg":
-			return "golang"
-
-		default:
-			return org
-		}
-
-	case strings.HasPrefix(modulePath, "google.golang.org/"):
-		return "google"
-
 	case strings.HasPrefix(modulePath, "golang.org/"),
 		strings.HasPrefix(modulePath, "github.com/pkg/"):
 		return "golang"
+
+	case strings.HasPrefix(modulePath, "github.com/"):
+		org := strings.Split(modulePath, "/")[1]
+		return org
+
+	case strings.HasPrefix(modulePath, "google.golang.org/"):
+		return "google"
 
 	case strings.HasPrefix(modulePath, "k8s.io/"),
 		strings.HasPrefix(modulePath, "sigs.k8s.io/"):
