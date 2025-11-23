@@ -10,16 +10,36 @@ import (
 	"net"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Thiht/go-command"
 	"github.com/Thiht/go-stats/goproxy"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/schollz/progressbar/v3"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"golang.org/x/sync/errgroup"
 )
+
+// FIXME: remove globals
+var (
+	moduleInfoCache       *lru.Cache[module.Version, goproxy.ModuleInfo]
+	latestModuleInfoCache *lru.Cache[string, goproxy.ModuleInfo]
+)
+
+func init() {
+	var err error
+	moduleInfoCache, err = lru.New[module.Version, goproxy.ModuleInfo](1024)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create module info cache: %v", err))
+	}
+
+	latestModuleInfoCache, err = lru.New[string, goproxy.ModuleInfo](1024)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create latest module info cache: %v", err))
+	}
+}
 
 func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy.Client) command.Handler {
 	return func(ctx context.Context, flagSet *flag.FlagSet, _ []string) int {
@@ -33,90 +53,43 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 		}
 
 		var (
-			nbModules        = int64(len(initialModules))
-			processedModules = int64(0)
-			progress         = progressbar.Default(nbModules)
-			mxNbModules      sync.Mutex
+			nbModules = int64(len(initialModules))
+			progress  = progressbar.Default(nbModules)
 		)
 
-		var pendingModules sync.Map
-
-		chModules := make(chan module.Version, 1_000)
-		var wgModules sync.WaitGroup
-		wgModules.Add(2)
+		modulesToProcess := make(chan module.Version, 1_000)
 
 		go func() {
-			wgModules.Wait()
-			close(chModules)
-		}()
-
-		go func() {
-			defer wgModules.Done()
+			defer func() {
+				slog.Debug("closing processing queue")
+				close(modulesToProcess)
+			}()
 
 			for _, m := range initialModules {
-				if _, loaded := pendingModules.LoadOrStore(m.Path, struct{}{}); loaded {
-					mxNbModules.Lock()
-					nbModules--
-					progress.ChangeMax64(nbModules)
-					mxNbModules.Unlock()
-					continue
-				}
-
-				slog.Debug("adding module to processing queue", slog.String("module", m.Path))
-				chModules <- m
+				slog.Debug("adding module to processing queue", slog.Any("module", m))
+				modulesToProcess <- m
 			}
-
-			slog.Debug("closing module channel")
 		}()
 
 		g, gCtx := errgroup.WithContext(ctx)
 		g.SetLimit(parallel)
 
-		for m := range chModules {
+		for m := range modulesToProcess {
 			g.Go(func() error {
 				defer func() {
 					if err := progress.Add(1); err != nil {
-						slog.Error("failed to update progress bar", slog.Any("error", err))
+						slog.Warn("failed to update progress bar", slog.Any("error", err))
 					}
 				}()
 
-				slog.Debug("processing module", slog.String("module", m.Path))
+				slog.Debug("processing module", slog.Any("module", m))
 
-				dependencies, err := processModule(gCtx, m, goProxyClient, driver)
-				if err != nil {
-					slog.Error("failed to process module", slog.String("module", m.Path), slog.Any("error", err))
+				if err := processModule(gCtx, m, goProxyClient, driver); err != nil {
+					slog.Error("failed to process module", slog.Any("module", m), slog.Any("error", err))
 					return err
 				}
 
-				chDependencies := make(chan module.Version, len(dependencies))
-				go func() {
-					var loadedDependencies int64
-					for dependency := range chDependencies {
-						if _, loaded := pendingModules.LoadOrStore(dependency.Path, struct{}{}); !loaded {
-							chModules <- dependency
-							loadedDependencies++
-						}
-					}
-
-					mxNbModules.Lock()
-					nbModules += loadedDependencies
-					progress.ChangeMax64(nbModules)
-					if processedModules == nbModules {
-						wgModules.Done()
-					}
-					mxNbModules.Unlock()
-				}()
-
-				for _, dependency := range dependencies {
-					chDependencies <- dependency
-				}
-
-				close(chDependencies)
-
-				slog.Debug("module processed", slog.String("module", m.Path))
-				mxNbModules.Lock()
-				processedModules++
-				mxNbModules.Unlock()
+				slog.Debug("module processed", slog.Any("module", m))
 
 				return nil
 			})
@@ -156,7 +129,7 @@ func loadInitialModules(seedFile string) ([]module.Version, error) {
 		line := scanner.Text()
 		modulePath, moduleVersion, _ := strings.Cut(line, " ")
 		modules = append(modules, module.Version{
-			Path:    strings.ToLower(modulePath),
+			Path:    modulePath,
 			Version: moduleVersion,
 		})
 	}
@@ -170,152 +143,215 @@ func loadInitialModules(seedFile string) ([]module.Version, error) {
 	return modules, nil
 }
 
-func processModule(ctx context.Context, modulePath module.Version, goProxyClient goproxy.Client, driver neo4j.DriverWithContext) ([]module.Version, error) {
-	logger := slog.With(slog.Any("module", modulePath))
+func processModule(ctx context.Context, m module.Version, goProxyClient goproxy.Client, driver neo4j.DriverWithContext) error {
+	logger := slog.With(slog.Any("module", m))
 
-	if modulePath.Version == "" {
-		logger.Debug("getting latest module info")
-		moduleInfo, err := goProxyClient.GetModuleLatestInfo(ctx, modulePath.Path, true)
-		if err != nil {
-			var netErr net.Error
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				logger.Error("timeout while getting latest module info", slog.Any("error", err), slog.Bool("cached", true))
-				return nil, nil
-			}
-
-			if !errors.Is(err, goproxy.ErrModuleNotFound) {
-				logger.Error("failed to get latest module info", slog.Any("error", err), slog.Bool("cached", true))
-				return nil, nil
-			}
-
-			moduleInfo, err = goProxyClient.GetModuleLatestInfo(ctx, modulePath.Path, false)
-			if err != nil {
-				if errors.As(err, &netErr) && netErr.Timeout() {
-					logger.Error("timeout while getting latest module info", slog.Any("error", err), slog.Bool("cached", false))
-					return nil, nil
-				}
-
-				if errors.Is(err, goproxy.ErrModuleNotFound) {
-					// This means the module is not depended on by any other module
-					// It can happen with seeds because they sometimes contain multiple go.mod files and we process all of them for now
-					logger.Warn("latest module info not found", slog.Any("error", err))
-					return nil, nil
-				}
-
-				logger.Error("failed to get latest module info", slog.Any("error", err), slog.Bool("cached", false))
-				return nil, nil
-			}
-		}
-
-		modulePath.Version = moduleInfo.Version
-	}
-
-	modFile, err := goProxyClient.GetModuleModFile(ctx, modulePath.Path, modulePath.Version, true)
+	moduleInfo, err := getModuleInfo(ctx, m, goProxyClient)
 	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
-			logger.Error("timeout while getting module go.mod file", slog.Any("error", err), slog.Bool("cached", true))
-			return nil, nil
-		}
-
-		if errors.Is(err, goproxy.ErrInvalidModFile) {
-			logger.Warn("invalid go.mod file", slog.Any("error", err))
-			return nil, nil
-		}
-
-		if !errors.Is(err, goproxy.ErrModuleNotFound) {
-			logger.Error("failed to get module go.mod file", slog.Any("error", err), slog.Bool("cached", true))
-			return nil, nil
-		}
-
-		modFile, err = goProxyClient.GetModuleModFile(ctx, modulePath.Path, modulePath.Version, false)
-		if err != nil {
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				logger.Error("timeout while getting module go.mod file", slog.Any("error", err), slog.Bool("cached", false))
-				return nil, nil
-			}
-
-			if errors.Is(err, goproxy.ErrInvalidModFile) {
-				logger.Warn("invalid go.mod file", slog.Any("error", err))
-				return nil, nil
-			}
-
-			if errors.Is(err, goproxy.ErrModuleNotFound) {
-				// This means the module doesn't have a go.mod file
-				logger.Warn("module go.mod file not found", slog.Any("error", err))
-				return nil, nil
-			}
-
-			logger.Error("failed to get module go.mod file", slog.Any("error", err), slog.Bool("cached", false))
-			return nil, nil
-		}
+		logger.Warn("failed to get module info", slog.Any("error", err))
+		return nil
 	}
 
-	if modFile.Module == nil {
-		logger.Warn("go.mod file does not contain module information")
-		return nil, nil
+	latestModuleInfo, err := getLatestModuleInfo(ctx, m, goProxyClient)
+	if err != nil {
+		logger.Warn("failed to get latest module info", slog.Any("error", err))
+		return nil
 	}
 
-	logger.Debug("creating module node", slog.String("name", modFile.Module.Mod.Path), slog.String("version", modFile.Module.Mod.Version))
-	if _, err := neo4j.ExecuteQuery(ctx, driver, "MERGE (m:Module {name: $name, version: $version, org: $org, host: $host}) RETURN m", map[string]any{
-		"name":    modFile.Module.Mod.Path,
-		"version": modFile.Module.Mod.Version,
-		"org":     extractOrg(modFile.Module.Mod.Path),
-		"host":    extractHost(modFile.Module.Mod.Path),
+	semver, err := parseVersion(m.Version)
+	if err != nil {
+		logger.Error("failed to parse module version", slog.String("version", m.Version), slog.Any("error", err))
+		return fmt.Errorf("failed to parse module version: %w", err)
+	}
+
+	latestSemver, err := parseVersion(latestModuleInfo.Version)
+	if err != nil {
+		logger.Error("failed to parse latest module version", slog.String("version", latestModuleInfo.Version), slog.Any("error", err))
+		return fmt.Errorf("failed to parse latest module version: %w", err)
+	}
+
+	logger.Debug("creating module node")
+	if _, err := neo4j.ExecuteQuery(ctx, driver, `
+		MERGE (m:Module { name: $name, version: $version })
+		SET m += {
+			org: $org, host: $host, latest: $latest,
+			versionTime: date($versionTime), versionMajor: $versionMajor, versionMinor: $versionMinor, versionPatch: $versionPatch, versionLabel: $versionLabel,
+			latestTime: date($latestTime), latestMajor: $latestMajor, latestMinor: $latestMinor, latestPatch: $latestPatch, latestLabel: $latestLabel
+		}
+		RETURN m
+	`, map[string]any{
+		"name": m.Path, "version": m.Version,
+		"org": extractOrg(m.Path), "host": extractHost(m.Path), "latest": latestModuleInfo.Version,
+		"versionTime": moduleInfo.Time.Format("2006-01-02"), "versionMajor": semver.Major, "versionMinor": semver.Minor, "versionPatch": semver.Patch, "versionLabel": semver.Label,
+		"latestTime": latestModuleInfo.Time.Format("2006-01-02"), "latestMajor": latestSemver.Major, "latestMinor": latestSemver.Minor, "latestPatch": latestSemver.Patch, "latestLabel": latestSemver.Label,
 	}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("")); err != nil {
-		logger.Error("failed to create module node", slog.String("name", modFile.Module.Mod.Path), slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create module node: %w", err)
+		logger.Error("failed to create module node", slog.Any("error", err))
+		return fmt.Errorf("failed to create module node: %w", err)
 	}
 
 	logger.Debug("processing direct dependencies")
 
+	modFile, err := getModFile(ctx, m, goProxyClient)
+	if err != nil {
+		logger.Warn("failed to get module go.mod file", slog.Any("error", err))
+		return nil
+	}
+
 	dependencies := make([]map[string]any, 0, len(modFile.Require))
-	dependsOn := make([]module.Version, 0, len(modFile.Require))
 
 	for _, dependency := range modFile.Require {
 		if dependency.Indirect {
 			continue
 		}
 
-		dependency.Mod.Path = strings.ToLower(dependency.Mod.Path)
-		dependsOn = append(dependsOn, dependency.Mod)
-
 		dependencies = append(dependencies, map[string]any{
 			"dependencyName":    dependency.Mod.Path,
 			"dependencyVersion": dependency.Mod.Version,
-			"dependencyOrg":     extractOrg(dependency.Mod.Path),
-			"dependencyHost":    extractHost(dependency.Mod.Path),
-			"dependentName":     modFile.Module.Mod.Path,
-			"dependentVersion":  modFile.Module.Mod.Version,
-			"dependentOrg":      extractOrg(modFile.Module.Mod.Path),
-			"dependentHost":     extractHost(modFile.Module.Mod.Path),
 		})
 	}
 
-	logger.Debug("creating module nodes and relationships for dependencies",
-		slog.String("dependent", modFile.Module.Mod.Path),
-		slog.String("dependentVersion", modFile.Module.Mod.Version),
-		slog.Int("dependenciesCount", len(dependencies)))
+	logger.Debug("creating module nodes and relationships for dependencies", slog.Int("dependenciesCount", len(dependencies)))
 
 	if _, err := neo4j.ExecuteQuery(ctx, driver, `
 		UNWIND $dependencies AS dep
-		MERGE (dependency:Module {name: dep.dependencyName, version: dep.dependencyVersion, org: dep.dependencyOrg, host: dep.dependencyHost})
-		MERGE (dependent:Module {name: dep.dependentName, version: dep.dependentVersion, org: dep.dependentOrg, host: dep.dependentHost})
+		MERGE (dependency:Module { name: dep.dependencyName, version: dep.dependencyVersion })
+		MERGE (dependent:Module {name: $dependentName, version: $dependentVersion })
 		MERGE (dependent)-[:DEPENDS_ON]->(dependency)
 		MERGE (dependency)-[:IS_DEPENDED_ON_BY]->(dependent)
 		RETURN dependency, dependent
 	`, map[string]any{
+		"dependentName": m.Path, "dependentVersion": m.Version,
 		"dependencies": dependencies,
-	}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase(""), neo4j.ExecuteQueryWithTransactionConfig(neo4j.WithTxTimeout(3*time.Second))); err != nil {
-		logger.Error("failed to create module nodes and relationships for dependencies",
-			slog.String("dependent", modFile.Module.Mod.Path),
-			slog.String("dependentVersion", modFile.Module.Mod.Version),
-			slog.Int("dependenciesCount", len(dependencies)),
-			slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create module nodes and relationships: %w", err)
+	}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase(""), neo4j.ExecuteQueryWithTransactionConfig(neo4j.WithTxTimeout(30*time.Second))); err != nil {
+		logger.Error("failed to create dependencies nodes and relationships", slog.Int("dependenciesCount", len(dependencies)), slog.Any("error", err))
+		return fmt.Errorf("failed to create dependencies nodes and relationships: %w", err)
 	}
 
-	return dependsOn, nil
+	return nil
+}
+
+func getModuleInfo(ctx context.Context, m module.Version, goProxyClient goproxy.Client) (goproxy.ModuleInfo, error) {
+	logger := slog.With(slog.Any("module", m))
+
+	logger.Debug("getting module info from cache")
+	if latestModuleInfo, ok := moduleInfoCache.Get(m); ok {
+		return latestModuleInfo, nil
+	}
+
+	logger.Debug("getting module info from goproxy (cached)")
+	moduleInfo, err := goProxyClient.GetModuleInfo(ctx, m.Path, m.Version, true)
+	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return goproxy.ModuleInfo{}, fmt.Errorf("timeout while getting module info: %w", err)
+		}
+
+		if !errors.Is(err, goproxy.ErrModuleNotFound) {
+			return goproxy.ModuleInfo{}, fmt.Errorf("failed to get module info: %w", err)
+		}
+
+		logger.Debug("getting module info from goproxy")
+		moduleInfo, err = goProxyClient.GetModuleInfo(ctx, m.Path, m.Version, false)
+		if err != nil {
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				return goproxy.ModuleInfo{}, fmt.Errorf("timeout while getting module info: %w", err)
+			}
+
+			if errors.Is(err, goproxy.ErrModuleNotFound) {
+				return goproxy.ModuleInfo{}, fmt.Errorf("module info not found: %w", err)
+			}
+
+			return goproxy.ModuleInfo{}, fmt.Errorf("failed to get module info: %w", err)
+		}
+	}
+
+	_ = moduleInfoCache.Add(m, moduleInfo)
+	logger.Debug("module info cached")
+
+	return moduleInfo, nil
+}
+
+func getLatestModuleInfo(ctx context.Context, m module.Version, goProxyClient goproxy.Client) (goproxy.ModuleInfo, error) {
+	logger := slog.With(slog.Any("module", m))
+
+	logger.Debug("getting latest module info from cache")
+	if latestModuleInfo, ok := latestModuleInfoCache.Get(m.Path); ok {
+		return latestModuleInfo, nil
+	}
+
+	logger.Debug("getting latest module info from goproxy (cached)")
+	latestModuleInfo, err := goProxyClient.GetModuleLatestInfo(ctx, m.Path, true)
+	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return goproxy.ModuleInfo{}, fmt.Errorf("timeout while getting latest module info: %w", err)
+		}
+
+		if !errors.Is(err, goproxy.ErrModuleNotFound) {
+			return goproxy.ModuleInfo{}, fmt.Errorf("failed to get latest module info: %w", err)
+		}
+
+		logger.Debug("getting latest module info from goproxy")
+		latestModuleInfo, err = goProxyClient.GetModuleLatestInfo(ctx, m.Path, false)
+		if err != nil {
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				return goproxy.ModuleInfo{}, fmt.Errorf("timeout while getting latest module info: %w", err)
+			}
+
+			if errors.Is(err, goproxy.ErrModuleNotFound) {
+				return goproxy.ModuleInfo{}, fmt.Errorf("latest module info not found: %w", err)
+			}
+
+			return goproxy.ModuleInfo{}, fmt.Errorf("failed to get latest module info: %w", err)
+		}
+	}
+
+	_ = latestModuleInfoCache.Add(m.Path, latestModuleInfo)
+	logger.Debug("latest module info cached")
+
+	return latestModuleInfo, nil
+}
+
+func getModFile(ctx context.Context, m module.Version, goProxyClient goproxy.Client) (*modfile.File, error) {
+	logger := slog.With(slog.Any("module", m))
+
+	logger.Debug("getting mod file from goproxy (cached)")
+	modFile, err := goProxyClient.GetModuleModFile(ctx, m.Path, m.Version, true)
+	if err != nil {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			return nil, fmt.Errorf("timeout while getting module go.mod file: %w", err)
+		}
+
+		if errors.Is(err, goproxy.ErrInvalidModFile) {
+			return nil, fmt.Errorf("invalid go.mod file: %w", err)
+		}
+
+		if !errors.Is(err, goproxy.ErrModuleNotFound) {
+			return nil, fmt.Errorf("failed to get go.mod file: %w", err)
+		}
+
+		logger.Debug("getting mod file from goproxy ")
+		modFile, err = goProxyClient.GetModuleModFile(ctx, m.Path, m.Version, false)
+		if err != nil {
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				return nil, fmt.Errorf("timeout while getting module go.mod file: %w", err)
+			}
+
+			if errors.Is(err, goproxy.ErrInvalidModFile) {
+				return nil, fmt.Errorf("invalid go.mod file: %w", err)
+			}
+
+			if errors.Is(err, goproxy.ErrModuleNotFound) {
+				// This means the module doesn't have a go.mod file
+				return nil, fmt.Errorf("module go.mod file not found: %w", err)
+			}
+
+			return nil, fmt.Errorf("failed to get module go.mod file: %w", err)
+		}
+	}
+
+	return modFile, nil
 }
 
 func extractHost(modulePath string) string {
@@ -357,4 +393,27 @@ func extractOrg(modulePath string) string {
 	default:
 		return ""
 	}
+}
+
+type semanticVersion struct {
+	Major string
+	Minor string
+	Patch string
+	Label string
+}
+
+func parseVersion(version string) (semver semanticVersion, err error) {
+	version = strings.TrimPrefix(version, "v")
+
+	version, label, ok := strings.Cut(version, "-")
+	if !ok {
+		version, label, _ = strings.Cut(version, "+")
+	}
+
+	tokens := strings.Split(version, ".")
+	if len(tokens) != 3 {
+		return semanticVersion{}, fmt.Errorf("invalid version format: %s", version)
+	}
+
+	return semanticVersion{Major: tokens[0], Minor: tokens[1], Patch: tokens[2], Label: label}, nil
 }

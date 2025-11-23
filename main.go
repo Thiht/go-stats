@@ -79,19 +79,13 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	defer session.Close(ctx)
 
 	slog.Debug("creating neo4j indexes")
-	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.name);", nil); err != nil {
-		slog.Error("failed to create index on :Module(name)", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create index on :Module(name): %w", err)
-	}
-
-	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.version);", nil); err != nil {
-		slog.Error("failed to create index on :Module(version)", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create index on :Module(version): %w", err)
-	}
-
-	if _, err := session.Run(ctx, "CREATE INDEX IF NOT EXISTS FOR (m:Module) ON (m.org);", nil); err != nil {
-		slog.Error("failed to create index on :Module(org)", slog.Any("error", err))
-		return nil, fmt.Errorf("failed to create index on :Module(org): %w", err)
+	if _, err := session.Run(ctx, `
+		CREATE CONSTRAINT module_identity IF NOT EXISTS
+		FOR (m:Module)
+		REQUIRE (m.name, m.version) IS UNIQUE
+	`, nil); err != nil {
+		slog.Error("failed to create module_identity constraint", slog.Any("error", err))
+		return nil, fmt.Errorf("failed to create module_identity constraint: %w", err)
 	}
 
 	return driver, nil
