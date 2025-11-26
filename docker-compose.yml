@@ -7,5 +7,8 @@ services:
       - 7687:7687
     environment:
       NEO4J_AUTH: none
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - ./neo4j/data:/data
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]

@@ -1,3 +1,4 @@
 .task/
 data/goproxy-modules/*.txt
-data/seed-goproxy.txt
+data/seed-goproxy.*
+neo4j/

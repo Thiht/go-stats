@@ -11,8 +11,9 @@ tasks:
     vars:
       SEED: ./data/seed-goproxy.txt
       PARALLEL: 64
+      OFFSET: 23241000
     cmds:
-      - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} > /tmp/process-modules.log
+      - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} -offset={{ .OFFSET }} > /tmp/process-modules.log
 
   init-goproxy-seed:
     desc: Initialize the seed file with Go modules from the Go proxy.

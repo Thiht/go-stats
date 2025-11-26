@@ -56,6 +56,7 @@ func main() {
 	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.Int("parallel", runtime.NumCPU(), "Number of parallel workers")
 		flagSet.String("seed-file", "", "")
+		flagSet.Int64("offset", 0, "Number of lines to skip from the seed files")
 	})
 	root.Execute(ctx)
 }
@@ -86,6 +87,11 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	`, nil); err != nil {
 		slog.Error("failed to create module_identity constraint", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to create module_identity constraint: %w", err)
+	}
+
+	if _, err := session.Run(ctx, "CREATE INDEX module_version_latest IF NOT EXISTS FOR (m:Module) ON (m.version, m.latest)", nil); err != nil {
+		slog.Error("failed to create module_version_latest index", slog.Any("error", err))
+		return nil, fmt.Errorf("failed to create module_version_latest index: %w", err)
 	}
 
 	return driver, nil

@@ -45,8 +45,9 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 	return func(ctx context.Context, flagSet *flag.FlagSet, _ []string) int {
 		parallel := command.Lookup[int](flagSet, "parallel")
 		seedFile := command.Lookup[string](flagSet, "seed-file")
+		offset := command.Lookup[int64](flagSet, "offset")
 
-		initialModules, err := loadInitialModules(seedFile)
+		initialModules, err := loadInitialModules(seedFile, offset)
 		if err != nil {
 			slog.Error("failed to load initial modules", slog.Any("error", err))
 			return 1
@@ -104,7 +105,7 @@ func ProcessModulesHandler(driver neo4j.DriverWithContext, goProxyClient goproxy
 	}
 }
 
-func loadInitialModules(seedFile string) ([]module.Version, error) {
+func loadInitialModules(seedFile string, offset int64) ([]module.Version, error) {
 	slog.Debug("opening seed file", slog.String("file", seedFile))
 	seedFileHandler, err := os.Open(seedFile)
 	if err != nil {
@@ -125,8 +126,15 @@ func loadInitialModules(seedFile string) ([]module.Version, error) {
 	slog.Debug("reading seed file", slog.String("file", seedFile), slog.Int64("estimatedCount", estimatedCount))
 	modules := make([]module.Version, 0, estimatedCount)
 	scanner := bufio.NewScanner(seedFileHandler)
+	nbLines := int64(0)
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		nbLines++
+		if nbLines <= offset {
+			continue
+		}
+
 		modulePath, moduleVersion, _ := strings.Cut(line, " ")
 		modules = append(modules, module.Version{
 			Path:    modulePath,
@@ -217,7 +225,6 @@ func processModule(ctx context.Context, m module.Version, goProxyClient goproxy.
 		MERGE (dependency:Module { name: dep.dependencyName, version: dep.dependencyVersion })
 		MERGE (dependent:Module {name: $dependentName, version: $dependentVersion })
 		MERGE (dependent)-[:DEPENDS_ON]->(dependency)
-		MERGE (dependency)-[:IS_DEPENDED_ON_BY]->(dependent)
 		RETURN dependency, dependent
 	`, map[string]any{
 		"dependentName": m.Path, "dependentVersion": m.Version,
