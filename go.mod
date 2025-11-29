@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845
-	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4

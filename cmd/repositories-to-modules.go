@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/Thiht/go-command"
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-git/go-git/v5"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/mod/modfile"
@@ -84,7 +84,7 @@ func RepositoriesToModulesHandler() command.Handler {
 
 				clonePath := "/tmp/" + repoName + "-" + repoURLHash
 				logger.Debug("cloning repository", slog.String("path", clonePath))
-				if err := backoff.Retry(func() error {
+				if _, err := backoff.Retry(ctx, func() (any, error) {
 					_, err := git.PlainCloneContext(ctx, clonePath, false, &git.CloneOptions{
 						URL:          repoURL,
 						Depth:        1,
@@ -96,18 +96,18 @@ func RepositoriesToModulesHandler() command.Handler {
 							logger.Debug("repository already exists, removing it now", slog.String("path", clonePath))
 							if err := os.RemoveAll(clonePath); err != nil {
 								logger.Error("failed to remove repository", slog.String("path", clonePath), slog.Any("error", err))
-								return fmt.Errorf("failed to remove repository: %w", err)
+								return nil, fmt.Errorf("failed to remove repository: %w", err)
 							}
 
 						default:
 							logger.Error("failed to clone repository", slog.String("path", clonePath), slog.Any("error", err))
 						}
 
-						return fmt.Errorf("failed to clone repository: %w", err)
+						return nil, fmt.Errorf("failed to clone repository: %w", err)
 					}
 
-					return nil
-				}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx)); err != nil {
+					return nil, nil
+				}); err != nil {
 					logger.Error("failed to clone repository", slog.String("path", clonePath), slog.Any("error", err))
 					return fmt.Errorf("failed to clone repository after multiple attempts: %w", err)
 				}
