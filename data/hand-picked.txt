@@ -1,2 +1,0 @@
-https://github.com/smocker-dev/smocker
-https://github.com/ovh/venom

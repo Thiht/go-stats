@@ -25,25 +25,6 @@ tasks:
       - (cd data/goproxy-modules ; ls *.txt.xz | xargs -I {} tar xJf {})
       - cat data/goproxy-modules/*.txt > data/seed-goproxy.txt
 
-  init-seed:
-    desc: Initialize the seed file with GitHub repositories.
-    generates:
-      - ./data/awesome-go.txt
-      - ./data/seed.txt
-      - ./data/top10.txt
-      - ./data/top100.txt
-    cmds:
-      - bash scripts/init-seed.sh
-
-  convert-seed:
-    desc: Convert the seed repositories URLs from the seed to Go module paths.
-    sources:
-      - ./data/seed.txt
-    generates:
-      - ./data/seed-modules.txt
-    cmds:
-      - go run . repositories-to-modules -input-file=./data/seed.txt -output-file=./data/seed-modules.txt
-
   neo4j:backup:dump:
     cmds:
       - |
