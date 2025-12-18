@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Process Modules",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "args": [
+        "process-modules",
+        "-parallel=64",
+        "-seed-file=./data/seed-goproxy.txt"
+      ],
+      "env": {},
+      "buildFlags": ""
+    }
+  ]
+}

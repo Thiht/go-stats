@@ -43,3 +43,21 @@ tasks:
       - ./data/seed-modules.txt
     cmds:
       - go run . repositories-to-modules -input-file=./data/seed.txt -output-file=./data/seed-modules.txt
+
+  neo4j:backup:dump:
+    cmds:
+      - |
+        docker run -it --rm \
+          -v ./neo4j/data:/data \
+          -v ./neo4j/backups:/backups \
+          neo4j:5 \
+          neo4j-admin database dump --to-path=/backups neo4j
+
+  neo4j:backup:load:
+    cmds:
+      - |
+        docker run -it --rm \
+          -v ./neo4j/data:/data \
+          -v ./neo4j/backups:/backups \
+          neo4j:5 \
+          neo4j-admin database load --from-path=/backups neo4j
