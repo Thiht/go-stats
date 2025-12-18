@@ -8,6 +8,7 @@ services:
     environment:
       NEO4J_AUTH: none
       NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_client_allow__telemetry: 'false'
     volumes:
       - ./neo4j/data:/data
     healthcheck:

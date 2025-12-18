@@ -35,10 +35,14 @@ tasks:
           neo4j-admin database dump --to-path=/backups neo4j
 
   neo4j:backup:load:
+    preconditions:
+      - test -f ./neo4j/backups/neo4j.dump
     cmds:
       - |
         docker run -it --rm \
           -v ./neo4j/data:/data \
-          -v ./neo4j/backups:/backups \
+          -v ./neo4j/backups:/backups:ro \
           neo4j:5 \
-          neo4j-admin database load --from-path=/backups neo4j
+          neo4j-admin database load neo4j \
+            --from-path=/backups \
+            --overwrite-destination=true
