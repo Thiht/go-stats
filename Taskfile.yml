@@ -9,21 +9,11 @@ tasks:
   process:
     desc: Process the modules.
     vars:
-      SEED: ./data/seed-goproxy.txt
+      SEED: ""
       PARALLEL: 64
       OFFSET: 23241000
     cmds:
       - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} -offset={{ .OFFSET }} > /tmp/process-modules.log
-
-  init-goproxy-seed:
-    desc: Initialize the seed file with Go modules from the Go proxy.
-    sources:
-      - ./data/goproxy-modules/*.txt.xz
-    generates:
-      - ./data/seed-goproxy.txt
-    cmds:
-      - (cd data/goproxy-modules ; ls *.txt.xz | xargs -I {} tar xJf {})
-      - cat data/goproxy-modules/*.txt > data/seed-goproxy.txt
 
   init-seed:
     desc: Initialize the seed file with GitHub repositories.
