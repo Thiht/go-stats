@@ -11,7 +11,7 @@ tasks:
     vars:
       SEED: ./data/seed-goproxy.txt
       PARALLEL: 64
-      OFFSET: 23241000
+      OFFSET: 0
     cmds:
       - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} -offset={{ .OFFSET }} > /tmp/process-modules.log
 
@@ -22,6 +22,8 @@ tasks:
     generates:
       - ./data/seed-goproxy.txt
     cmds:
+      - git lfs install
+      - git lfs pull
       - (cd data/goproxy-modules ; ls *.txt.xz | xargs -I {} tar xJf {})
       - cat data/goproxy-modules/*.txt > data/seed-goproxy.txt
 
