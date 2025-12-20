@@ -9,9 +9,9 @@ tasks:
   process:
     desc: Process the modules.
     vars:
-      SEED: ""
+      SEED: ./data/seed-modules.txt
       PARALLEL: 64
-      OFFSET: 23241000
+      OFFSET: 0
     cmds:
       - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} -offset={{ .OFFSET }} > /tmp/process-modules.log
 
