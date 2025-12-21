@@ -54,6 +54,7 @@ func main() {
 		flagSet.String("seed-file", "", "")
 		flagSet.Int64("offset", 0, "Number of lines to skip from the seed files")
 	})
+	root.SubCommand("enrich-latest").Action(cmd.EnrichLatestHandler(driver, goProxyClient))
 	root.Execute(ctx)
 }
 
