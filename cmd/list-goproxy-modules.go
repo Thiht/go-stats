@@ -3,8 +3,8 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"encoding/csv"
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -41,6 +41,11 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 		bufferedWriter := bufio.NewWriter(outputFileHandler)
 		defer bufferedWriter.Flush()
 
+		csvWriter := csv.NewWriter(bufferedWriter)
+		defer csvWriter.Flush()
+
+		csvWriter.Write([]string{"timestamp", "module", "version"})
+
 		nbDays := int64(until.Sub(since).Hours() / 24)
 		progress := progressbar.Default(nbDays, since.Format("2006-01-02"))
 
@@ -76,8 +81,8 @@ func ListGoProxyModulesHandler(goProxyClient goproxy.Client) command.Handler {
 			}
 			modulesSet[key] = struct{}{}
 
-			if _, err := fmt.Fprintf(bufferedWriter, "%s %s\n", i.Path, i.Version); err != nil {
-				slog.Error("failed to write module", slog.String("module", i.Path), slog.String("version", i.Version), slog.Any("error", err))
+			if err := csvWriter.Write([]string{i.Timestamp.Format(time.RFC3339Nano), i.Path, i.Version}); err != nil {
+				slog.Error("failed to write module", slog.String("timestamp", i.Timestamp.Format(time.RFC3339Nano)), slog.String("module", i.Path), slog.String("version", i.Version), slog.Any("error", err))
 				continue
 			}
 		}

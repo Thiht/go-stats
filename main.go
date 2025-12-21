@@ -47,7 +47,7 @@ func main() {
 	root.SubCommand("list-goproxy-modules").Action(cmd.ListGoProxyModulesHandler(goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("since", "2019-04-10T19:08:52.997264Z", "List modules since this date")
 		flagSet.String("until", time.Now().Format(time.RFC3339Nano), "List modules until this date")
-		flagSet.String("output-file", "./data/go-proxy-modules.txt", "Output file containing the list of Go module paths")
+		flagSet.String("output-file", "./data/go-proxy-modules.csv", "Output file containing the list of Go module paths")
 	})
 	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.Int("parallel", runtime.NumCPU(), "Number of parallel workers")

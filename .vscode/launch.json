@@ -10,7 +10,7 @@
       "args": [
         "process-modules",
         "-parallel=64",
-        "-seed-file=./data/seed-goproxy.txt"
+        "-seed-file=./data/seed-goproxy.csv"
       ],
       "env": {},
       "buildFlags": ""
