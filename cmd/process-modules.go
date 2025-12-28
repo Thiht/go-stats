@@ -172,7 +172,7 @@ func processModule(ctx context.Context, m module.Version, goProxyClient goproxy.
 		MERGE (m:Module { name: $name, version: $version })
 		SET m += {
 			org: $org, host: $host,
-			versionTime: date($versionTime), versionMajor: $versionMajor, versionMinor: $versionMinor, versionPatch: $versionPatch, versionLabel: $versionLabel,
+			versionTime: date($versionTime), versionMajor: $versionMajor, versionMinor: $versionMinor, versionPatch: $versionPatch, versionLabel: $versionLabel
 		}
 		RETURN m
 	`, map[string]any{
