@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
-	github.com/schollz/progressbar/v3 v3.18.0
+	github.com/schollz/progressbar/v3 v3.19.0
 	golang.org/x/mod v0.31.0
 	golang.org/x/sync v0.19.0
 )
