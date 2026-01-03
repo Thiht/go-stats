@@ -15,6 +15,16 @@ tasks:
     cmds:
       - go run . process-modules -parallel={{ .PARALLEL }} -seed-file={{ .SEED }} -offset={{ .OFFSET }} > /tmp/process-modules.log
 
+  fetch-goproxy-seed:
+    vars:
+      YEAR: 2025
+    cmds:
+      - |
+        go run . list-goproxy-modules \
+          -since={{ .YEAR }}-01-01T00:00:00Z \
+          -until={{ add .YEAR 1 }}-01-01T00:00:00Z \
+          -output-file=./data/goproxy-modules/{{ .YEAR }}-goproxy-modules.csv
+
   init-goproxy-seed:
     desc: Initialize the seed file with Go modules from the Go proxy.
     sources:
