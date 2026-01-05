@@ -1,5 +1,7 @@
 github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845 h1:w3frWnsxbUap82WXCWV88Gkb0gXOfPXhZ0b9sc0K3NM=
 github.com/Thiht/go-command v0.0.0-20241226225001-8459c8a3b845/go.mod h1:ryaWWosdXuUcUhwM9cr/3xlg/4CXhBs1S70CBO4gYcc=
+github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
+github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/chengxilo/virtualterm v1.0.4 h1:Z6IpERbRVlfB8WkOmtbHiDbBANU7cimRIof7mk9/PwM=
 github.com/chengxilo/virtualterm v1.0.4/go.mod h1:DyxxBZz/x1iqJjFxTFcr6/x+jSpqN0iwWCOK1q10rlY=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

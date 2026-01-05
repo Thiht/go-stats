@@ -7,6 +7,6 @@ The full Go proxy index from years 2019 to 2025 is cached in [data/goproxy-modul
 ## Build & Run
 
 - `task init-goproxy-seed`: extract and concatenate the cached Go proxy seed files to process them all at once
-- `docker compose up -d`: start a Neo4j instance
+- `task neo4j:start`: start a Neo4j instance
   - the Neo4j browser is accessible on http://localhost:7474/ (connection url: `neo4j://localhost:7687` ; no username/password required)
 - `task process`: load the modules to Neo4j

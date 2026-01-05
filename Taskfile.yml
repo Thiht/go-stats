@@ -37,6 +37,14 @@ tasks:
       - (cd data/goproxy-modules ; unxz -k *.csv.xz)
       - xsv cat rows *.csv > data/seed-goproxy.csv
 
+  neo4j:start:
+    cmds:
+      - docker compose up -d
+
+  neo4j:stop:
+    cmds:
+      - docker compose down
+
   neo4j:backup:dump:
     cmds:
       - |

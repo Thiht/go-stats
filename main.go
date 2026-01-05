@@ -39,7 +39,10 @@ func main() {
 				level = slog.LevelWarn
 			}
 
-			slog.SetLogLoggerLevel(level)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+				Level: level,
+			}))
+			slog.SetDefault(logger)
 
 			return next(ctx, flagSet, args)
 		}
@@ -47,14 +50,20 @@ func main() {
 	root.SubCommand("list-goproxy-modules").Action(cmd.ListGoProxyModulesHandler(goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.String("since", "2019-04-10T19:08:52.997264Z", "List modules since this date")
 		flagSet.String("until", time.Now().Format(time.RFC3339Nano), "List modules until this date")
-		flagSet.String("output-file", "./data/go-proxy-modules.csv", "Output file containing the list of Go module paths")
+		flagSet.String("output-file", "./data/goproxy-modules.csv", "Output file containing the list of Go module paths")
 	})
 	root.SubCommand("process-modules").Action(cmd.ProcessModulesHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
 		flagSet.Int("parallel", runtime.NumCPU(), "Number of parallel workers")
 		flagSet.String("seed-file", "", "")
 		flagSet.Int64("offset", 0, "Number of lines to skip from the seed files")
 	})
-	root.SubCommand("enrich-latest").Action(cmd.EnrichLatestHandler(driver, goProxyClient))
+	root.SubCommand("list-goproxy-latest").Action(cmd.ListGoProxyLatestHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
+		flagSet.Int("parallel", 100, "Number of parallel workers")
+		flagSet.String("output-file", "./data/goproxy-latest.csv", "Output file containing the list of Go modules latest versions")
+	})
+	root.SubCommand("enrich-latest").Action(cmd.EnrichLatestHandler(driver, goProxyClient)).Flags(func(flagSet *flag.FlagSet) {
+		flagSet.String("input-file", "./data/goproxy-latest.csv", "Input file containing the list of Go modules latest versions")
+	})
 	root.Execute(ctx)
 }
 
@@ -77,6 +86,16 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	defer session.Close(ctx)
 
 	slog.Debug("creating neo4j indexes")
+
+	if _, err := session.Run(ctx, `
+		CREATE INDEX module_name_idx IF NOT EXISTS
+		FOR (m:Module)
+		ON (m.name)
+	`, nil); err != nil {
+		slog.Error("failed to create module_name_idx index", slog.Any("error", err))
+		return nil, fmt.Errorf("failed to create module_name_idx index: %w", err)
+	}
+
 	if _, err := session.Run(ctx, `
 		CREATE CONSTRAINT module_identity IF NOT EXISTS
 		FOR (m:Module)
@@ -84,6 +103,15 @@ func setupNeo4j(ctx context.Context) (neo4j.DriverWithContext, error) {
 	`, nil); err != nil {
 		slog.Error("failed to create module_identity constraint", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to create module_identity constraint: %w", err)
+	}
+
+	if _, err := session.Run(ctx, `
+		CREATE INDEX module_isLatest_idx IF NOT EXISTS
+		FOR (m:Module)
+		ON (m.isLatest)
+	`, nil); err != nil {
+		slog.Error("failed to create module_isLatest_idx index", slog.Any("error", err))
+		return nil, fmt.Errorf("failed to create module_isLatest_idx index: %w", err)
 	}
 
 	if _, err := session.Run(ctx, "CREATE INDEX module_version_latest IF NOT EXISTS FOR (m:Module) ON (m.version, m.latest)", nil); err != nil {

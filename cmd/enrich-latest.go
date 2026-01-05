@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
-	"net"
+	"os"
 
 	"github.com/Thiht/go-command"
 	"github.com/Thiht/go-stats/goproxy"
@@ -16,164 +18,130 @@ import (
 )
 
 func EnrichLatestHandler(driver neo4j.DriverWithContext, goProxyClient goproxy.Client) command.Handler {
-	return func(ctx context.Context, _ *flag.FlagSet, _ []string) int {
-		nbModules, err := countDistinctModules(ctx, driver)
+	return func(ctx context.Context, flagSet *flag.FlagSet, _ []string) int {
+		inputFile := command.Lookup[string](flagSet, "input-file")
+
+		slog.DebugContext(ctx, "opening input file", slog.String("file", inputFile))
+		inputFileHandler, err := os.Open(inputFile)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to count distinct modules", slog.Any("error", err))
+			slog.ErrorContext(ctx, "failed to open input file", slog.String("file", inputFile), slog.Any("error", err))
+			return 1
+		}
+		defer inputFileHandler.Close()
+
+		reader := csv.NewReader(inputFileHandler)
+		reader.FieldsPerRecord = 2
+
+		// Skip header
+		if _, err := reader.Read(); err != nil && !errors.Is(err, io.EOF) {
+			slog.ErrorContext(ctx, "failed to read header", slog.String("file", inputFile), slog.Any("error", err))
 			return 1
 		}
 
-		progress := progressbar.Default(nbModules)
+		records := [][]string{}
+		for {
+			record, err := reader.Read()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to read csv record", slog.Any("error", err))
+				return 1
+			}
+			records = append(records, record)
+		}
 
-		readSession := driver.NewSession(ctx, neo4j.SessionConfig{
-			AccessMode: neo4j.AccessModeRead,
-		})
-		defer readSession.Close(ctx)
+		progress := progressbar.Default(int64(len(records)))
 
-		writeSession := driver.NewSession(ctx, neo4j.SessionConfig{
+		session := driver.NewSession(ctx, neo4j.SessionConfig{
 			AccessMode: neo4j.AccessModeWrite,
 		})
-		defer writeSession.Close(ctx)
+		defer session.Close(ctx)
 
-		result, err := readSession.Run(ctx, "MATCH (m:Module) RETURN m.name AS name", nil)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to list modules", slog.Any("error", err))
-			return 1
+		type moduleUpdate struct {
+			name        string
+			latest      string
+			latestMajor string
+			latestMinor string
+			latestPatch string
+			latestLabel string
 		}
 
-		chModules := make(chan string, 100)
-		go func() {
-			defer close(chModules)
+		const batchSize = 1_000
+		batch := make([]moduleUpdate, 0, batchSize)
 
-			for result.Next(ctx) {
-				record := result.Record()
+		flushBatch := func() error {
+			if len(batch) == 0 {
+				return nil
+			}
 
-				rawName, ok := record.Get("name")
-				if !ok {
-					slog.WarnContext(ctx, "failed to get module name from record")
-					continue
+			updates := make([]map[string]any, len(batch))
+			for i, update := range batch {
+				updates[i] = map[string]any{
+					"name":        update.name,
+					"latest":      update.latest,
+					"latestMajor": update.latestMajor,
+					"latestMinor": update.latestMinor,
+					"latestPatch": update.latestPatch,
+					"latestLabel": update.latestLabel,
 				}
+			}
 
-				name, ok := rawName.(string)
-				if !ok {
-					slog.WarnContext(ctx, "module name is not a string", slog.Any("name", rawName))
-					continue
+			if _, err := session.Run(ctx, `
+				UNWIND $updates AS update
+				MATCH (m:Module { name: update.name })
+				SET m += {
+					isLatest: m.version = update.latest,
+					latest: update.latest,
+				    latestMajor: update.latestMajor,
+				    latestMinor: update.latestMinor,
+				    latestPatch: update.latestPatch,
+				    latestLabel: update.latestLabel
 				}
+			`, map[string]any{"updates": updates}); err != nil {
+				return fmt.Errorf("failed to batch update Module nodes: %w", err)
+			}
 
-				chModules <- name
-			}
-			if err := result.Err(); err != nil {
-				slog.ErrorContext(ctx, "error while iterating module records", slog.Any("error", err))
-			}
-		}()
+			batch = batch[:0]
+			return nil
+		}
 
-		modulesSet := map[string]struct{}{}
-		for name := range chModules {
-			if _, exists := modulesSet[name]; exists {
-				continue
-			}
-			modulesSet[name] = struct{}{}
+		for _, record := range records {
+			moduleName := record[0]
+			latestVersion := record[1]
 
 			if err := progress.Add(1); err != nil {
 				slog.WarnContext(ctx, "failed to update progress bar", slog.Any("error", err))
 			}
 
-			latestModuleInfo, err := getLatestModuleInfo(ctx, name, goProxyClient)
+			latestSemver, err := semver.Parse(latestVersion)
 			if err != nil {
-				slog.WarnContext(ctx, "failed to get latest module info", slog.String("module", name), slog.Any("error", err))
+				slog.WarnContext(ctx, "failed to parse latest module version", slog.String("module", moduleName), slog.String("version", latestVersion), slog.Any("error", err))
 				continue
 			}
 
-			latestSemver, err := semver.Parse(latestModuleInfo.Version)
-			if err != nil {
-				slog.WarnContext(ctx, "failed to parse latest module version", slog.String("module", name), slog.String("version", latestModuleInfo.Version), slog.Any("error", err))
-				continue
-			}
+			batch = append(batch, moduleUpdate{
+				name:        moduleName,
+				latest:      latestVersion,
+				latestMajor: latestSemver.Major,
+				latestMinor: latestSemver.Minor,
+				latestPatch: latestSemver.Patch,
+				latestLabel: latestSemver.Label,
+			})
 
-			if _, err := writeSession.Run(ctx, `
-				MATCH (m:Module { name: $name })
-         		SET m += {
-					latest: $latest,
-					latestTime: date($latestTime),
-					latestMajor: $latestMajor,
-					latestMinor: $latestMinor,
-					latestPatch: $latestPatch,
-					latestLabel: $latestLabel
+			if len(batch) >= batchSize {
+				if err := flushBatch(); err != nil {
+					slog.ErrorContext(ctx, "failed to flush batch", slog.Any("error", err))
+					return 1
 				}
-			`,
-				map[string]any{
-					"name":        name,
-					"latest":      latestModuleInfo.Version,
-					"latestTime":  latestModuleInfo.Time.Format("2006-01-02"),
-					"latestMajor": latestSemver.Major,
-					"latestMinor": latestSemver.Minor,
-					"latestPatch": latestSemver.Patch,
-					"latestLabel": latestSemver.Label,
-				}); err != nil {
-				slog.ErrorContext(ctx, "failed to update module with latest info", slog.String("module", name), slog.Any("error", err))
-				continue
 			}
+		}
+
+		if err := flushBatch(); err != nil {
+			slog.ErrorContext(ctx, "failed to flush final batch", slog.Any("error", err))
+			return 1
 		}
 
 		return 0
 	}
-}
-
-func countDistinctModules(ctx context.Context, driver neo4j.DriverWithContext) (int64, error) {
-	result, err := neo4j.ExecuteQuery(ctx, driver, `
-		MATCH (m:Module)
-		RETURN COUNT(DISTINCT m.name) AS nbModules
-	`, nil, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase(""))
-	if err != nil {
-		return 0, fmt.Errorf("failed to count distinct module names: %w", err)
-	}
-
-	if len(result.Records) == 0 {
-		return 0, fmt.Errorf("no records returned from count distinct modules query")
-	}
-
-	rawNbModules, ok := result.Records[0].Get("nbModules")
-	if !ok {
-		return 0, fmt.Errorf("failed to get nbModules from record")
-	}
-
-	nbModules, ok := rawNbModules.(int64)
-	if !ok {
-		return 0, fmt.Errorf("nbModules is not an int64: %v", rawNbModules)
-	}
-
-	return nbModules, nil
-}
-
-func getLatestModuleInfo(ctx context.Context, m string, goProxyClient goproxy.Client) (goproxy.ModuleInfo, error) {
-	logger := slog.With(slog.String("module", m))
-
-	logger.Debug("getting latest module info from goproxy (cached)")
-	latestModuleInfo, err := goProxyClient.GetModuleLatestInfo(ctx, m, true)
-	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
-			return goproxy.ModuleInfo{}, fmt.Errorf("timeout while getting latest module info: %w", err)
-		}
-
-		if !errors.Is(err, goproxy.ErrModuleNotFound) {
-			return goproxy.ModuleInfo{}, fmt.Errorf("failed to get latest module info: %w", err)
-		}
-
-		logger.Debug("getting latest module info from goproxy")
-		latestModuleInfo, err = goProxyClient.GetModuleLatestInfo(ctx, m, false)
-		if err != nil {
-			if errors.As(err, &netErr) && netErr.Timeout() {
-				return goproxy.ModuleInfo{}, fmt.Errorf("timeout while getting latest module info: %w", err)
-			}
-
-			if errors.Is(err, goproxy.ErrModuleNotFound) {
-				return goproxy.ModuleInfo{}, fmt.Errorf("latest module info not found: %w", err)
-			}
-
-			return goproxy.ModuleInfo{}, fmt.Errorf("failed to get latest module info: %w", err)
-		}
-	}
-
-	return latestModuleInfo, nil
 }
