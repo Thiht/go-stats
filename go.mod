@@ -7,7 +7,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/schollz/progressbar/v3 v3.19.1
-	golang.org/x/mod v0.38.0
+	golang.org/x/mod v0.40.0
 	golang.org/x/sync v0.22.0
 )
 
